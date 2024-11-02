@@ -24060,29 +24060,6 @@
                 "weekday": 3,
                 "lessons": [
                   {
-                    "subject": "Информационно-коммуникационные технологии",
-                    "type": "л.",
-                    "subgroup": 0,
-                    "time_start": "09:30",
-                    "time_end": "10:50",
-                    "time": 2,
-                    "week": 8,
-                    "date": "23-10-2024",
-                    "teachers": [
-                      {
-                        "teacher_post": "",
-                        "teacher_name": "Окулова Е.А.",
-                        "teacher_id": "138"
-                      }
-                    ],
-                    "auditories": [
-                      {
-                        "auditory_name": "25.0005"
-                      }
-                    ],
-                    "Lesson_ID_Num": "70_4_4"
-                  },
-                  {
                     "subject": "Педагогика",
                     "type": "пр.",
                     "subgroup": 0,

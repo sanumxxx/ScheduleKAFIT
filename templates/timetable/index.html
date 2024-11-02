@@ -1,17 +1,126 @@
-<!-- templates/timetable/index.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col items-center">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Расписание занятий</h1>
+<div class="container mx-auto px-4 py-8">
+    <!-- Поиск -->
+    <div class="mb-8">
+        <div class="max-w-xl mx-auto">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Поиск</label>
+            <div class="relative">
+                <input type="text"
+                       id="searchInput"
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       placeholder="Введите группу, преподавателя или аудиторию...">
+            </div>
+        </div>
+    </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
-        {% for group in groups %}
-        <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
-           class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
-            <div class="text-lg font-semibold text-gray-700 text-center">{{ group }}</div>
-        </a>
-        {% endfor %}
+    <!-- Навигация -->
+    <div class="mb-8 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                    data-tab="groups">
+                Группы
+            </button>
+            <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                    data-tab="teachers">
+                Преподаватели
+            </button>
+            <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                    data-tab="rooms">
+                Аудитории
+            </button>
+        </nav>
+    </div>
+
+    <!-- Содержимое вкладок -->
+    <div class="tab-content" id="groupsTab">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {% for group in groups %}
+            <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
+               class="group-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+                <div class="text-lg font-semibold text-gray-700 text-center">{{ group }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="tab-content hidden" id="teachersTab">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {% for teacher in teachers %}
+            <a href="{{ url_for('timetable.teacher_timetable', teacher_name=teacher) }}"
+               class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+                <div class="text-lg font-semibold text-gray-700 text-center">{{ teacher }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="tab-content hidden" id="roomsTab">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {% for room in rooms %}
+            <a href="{{ url_for('timetable.room_timetable', room_name=room) }}"
+               class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+                <div class="text-lg font-semibold text-gray-700 text-center">{{ room }}</div>
+            </a>
+            {% endfor %}
+        </div>
     </div>
 </div>
+
+<script>
+// Переключение вкладок
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+        // Убираем активный класс со всех кнопок
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active', 'border-indigo-500', 'text-indigo-600');
+            btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        });
+
+        // Скрываем все вкладки
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+
+        // Активируем нужную вкладку
+        button.classList.add('active', 'border-indigo-500', 'text-indigo-600');
+        button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+
+        const tabId = button.dataset.tab + 'Tab';
+        document.getElementById(tabId).classList.remove('hidden');
+    });
+});
+
+// Поиск
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', (e) => {
+    const searchText = e.target.value.toLowerCase();
+    const activeTab = document.querySelector('.tab-button.active').dataset.tab;
+
+    // Ищем все карточки в активной вкладке
+    const cards = document.querySelectorAll(`#${activeTab}Tab .grid > a`);
+
+    cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(searchText)) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+});
+
+// Активируем первую вкладку по умолчанию
+document.querySelector('.tab-button[data-tab="groups"]').click();
+</script>
+
+<style>
+.tab-button.active {
+    @apply border-indigo-500 text-indigo-600;
+}
+.tab-button:not(.active) {
+    @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+}
+</style>
 {% endblock %}

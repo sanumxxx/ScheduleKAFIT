@@ -11,18 +11,39 @@ timetable_handler = TimetableHandler()
 # routes/timetable.py
 @bp.route('/')
 def index():
-    """Главная страница с выбором группы"""
+    """Главная страница с выбором группы/преподавателя/аудитории"""
     timetable_data = timetable_handler.read_timetable()
-    groups = []
 
-    if isinstance(timetable_data, list) and len(timetable_data) > 0:
-        weeks_data = timetable_data[0].get('timetable', [])
-        if weeks_data:
-            for group in weeks_data[0].get('groups', []):
-                if 'group_name' in group:
-                    groups.append(group['group_name'])
+    groups = set()
+    teachers = set()
+    rooms = set()
 
-    return render_template('timetable/index.html', groups=groups)
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    for group in week.get('groups', []):
+                        # Добавляем группу
+                        if 'group_name' in group:
+                            groups.add(group['group_name'])
+
+                        # Собираем информацию о преподавателях и аудиториях из занятий
+                        for day in group.get('days', []):
+                            for lesson in day.get('lessons', []):
+                                # Добавляем преподавателей
+                                for teacher in lesson.get('teachers', []):
+                                    if teacher.get('teacher_name'):
+                                        teachers.add(teacher['teacher_name'])
+
+                                # Добавляем аудитории
+                                for auditory in lesson.get('auditories', []):
+                                    if auditory.get('auditory_name'):
+                                        rooms.add(auditory['auditory_name'])
+
+    return render_template('timetable/index.html',
+                           groups=sorted(list(groups)),
+                           teachers=sorted(list(teachers)),
+                           rooms=sorted(list(rooms)))
 
 
 @bp.route('/group/<group_name>')
@@ -224,6 +245,177 @@ def update_timetable():
     except Exception as e:
         print(f"Error updating timetable: {str(e)}")
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@bp.route('/teacher/<teacher_name>')
+def teacher_timetable(teacher_name):
+    """Просмотр расписания преподавателя"""
+    timetable_data = timetable_handler.read_timetable()
+    selected_week = request.args.get('week', None)
+
+    # Получаем список всех недель
+    weeks = []
+    if isinstance(timetable_data, list):
+        for timetable_item in timetable_data:
+            if 'timetable' in timetable_item:
+                for week_data in timetable_item['timetable']:
+                    weeks.append({
+                        'week_number': week_data.get('week_number'),
+                        'date_start': week_data.get('date_start'),
+                        'date_end': week_data.get('date_end')
+                    })
+
+    # Сортируем недели по номеру
+    weeks.sort(key=lambda x: x['week_number'])
+
+    # Если неделя не выбрана, берем первую
+    if not selected_week and weeks:
+        selected_week = str(weeks[0].get('week_number'))
+
+    # Расписание звонков
+    time_slots = [
+        {'start': '08:00', 'end': '09:20'},
+        {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'},
+        {'start': '12:40', 'end': '14:00'},
+        {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'},
+        {'start': '17:10', 'end': '18:30'},
+        {'start': '18:40', 'end': '20:00'}
+    ]
+
+    day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+
+    def get_teacher_lessons(timetable, day, time):
+        """Получение занятий преподавателя для конкретного дня и времени"""
+        lessons_by_type = {}  # Словарь для группировки занятий по типу и предмету
+
+        try:
+            if isinstance(timetable, list):
+                for data in timetable:
+                    if 'timetable' in data:
+                        for week in data['timetable']:
+                            if selected_week and str(week.get('week_number')) != str(selected_week):
+                                continue
+
+                            for group in week.get('groups', []):
+                                group_name = group.get('group_name')
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            if (lesson.get('time') == time and
+                                                    any(teacher.get('teacher_name') == teacher_name
+                                                        for teacher in lesson.get('teachers', []))):
+
+                                                # Создаем ключ для группировки
+                                                key = (lesson.get('subject'), lesson.get('type'),
+                                                       lesson.get('auditories', [{}])[0].get('auditory_name'))
+
+                                                if key not in lessons_by_type:
+                                                    # Создаем новую запись с первой группой
+                                                    lesson_copy = lesson.copy()
+                                                    lesson_copy['groups'] = [group_name]
+                                                    lessons_by_type[key] = lesson_copy
+                                                else:
+                                                    # Добавляем группу к существующей записи
+                                                    lessons_by_type[key]['groups'].append(group_name)
+
+            # Преобразуем словарь в список и сортируем группы
+            result = list(lessons_by_type.values())
+            for lesson in result:
+                lesson['groups'].sort()
+
+            return result if result else None
+
+        except Exception as e:
+            print(f"Ошибка в get_teacher_lessons: {str(e)}")
+            return None
+
+    return render_template('timetable/teacher.html',
+                           teacher_name=teacher_name,
+                           weeks=weeks,
+                           current_week=selected_week,
+                           time_slots=time_slots,
+                           day_names=day_names,
+                           timetable=timetable_data,
+                           get_lessons=get_teacher_lessons)
+
+
+@bp.route('/room/<room_name>')
+def room_timetable(room_name):
+    """Просмотр расписания аудитории"""
+    timetable_data = timetable_handler.read_timetable()
+    selected_week = request.args.get('week', None)
+
+    # Получаем список всех недель
+    weeks = []
+    if isinstance(timetable_data, list):
+        for timetable_item in timetable_data:
+            if 'timetable' in timetable_item:
+                for week_data in timetable_item['timetable']:
+                    weeks.append({
+                        'week_number': week_data.get('week_number'),
+                        'date_start': week_data.get('date_start'),
+                        'date_end': week_data.get('date_end')
+                    })
+
+    # Сортируем недели по номеру
+    weeks.sort(key=lambda x: x['week_number'])
+
+    # Если неделя не выбрана, берем первую
+    if not selected_week and weeks:
+        selected_week = str(weeks[0].get('week_number'))
+
+    # Расписание звонков
+    time_slots = [
+        {'start': '08:00', 'end': '09:20'},
+        {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'},
+        {'start': '12:40', 'end': '14:00'},
+        {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'},
+        {'start': '17:10', 'end': '18:30'},
+        {'start': '18:40', 'end': '20:00'}
+    ]
+
+    day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+
+    def get_room_lessons(timetable, day, time):
+        """Получение занятий в аудитории для конкретного дня и времени"""
+        lessons = []
+        try:
+            if isinstance(timetable, list):
+                for data in timetable:
+                    if 'timetable' in data:
+                        for week in data['timetable']:
+                            # Проверяем номер недели, если он указан
+                            if selected_week and str(week.get('week_number')) != str(selected_week):
+                                continue
+
+                            for group in week.get('groups', []):
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            if (lesson.get('time') == time and
+                                                    any(auditory.get('auditory_name') == room_name
+                                                        for auditory in lesson.get('auditories', []))):
+                                                # Добавляем информацию о группе к занятию
+                                                lesson_with_group = lesson.copy()
+                                                lesson_with_group['group_name'] = group.get('group_name')
+                                                lessons.append(lesson_with_group)
+            return lessons if lessons else None
+        except Exception as e:
+            print(f"Ошибка в get_room_lessons: {str(e)}")
+            return None
+
+    return render_template('timetable/room.html',
+                           room_name=room_name,
+                           weeks=weeks,
+                           current_week=selected_week,
+                           time_slots=time_slots,
+                           day_names=day_names,
+                           timetable=timetable_data,
+                           get_lessons=get_room_lessons)
 
 
 
