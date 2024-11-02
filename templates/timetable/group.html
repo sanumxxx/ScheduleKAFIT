@@ -104,188 +104,205 @@
             </table>
         </div>
 
-        <!-- Модальное окно для редактирования -->
-        <!-- Модальное окно для редактирования -->
-        <div id="editModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
-            <div class="fixed inset-0 z-10 overflow-y-auto">
-                <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                    <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                            <h3 class="text-lg font-semibold mb-4" id="modalTitle">Редактирование занятия</h3>
-                            <form id="editForm" class="space-y-4">
-                                <!-- Выбор типа распределения -->
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Тип распределения</label>
-                                    <div class="space-y-2">
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="groupType" value="common" class="form-radio"
-                                                   checked>
-                                            <span class="ml-2">Общее занятие</span>
-                                        </label>
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="groupType" value="subgroup1" class="form-radio">
-                                            <span class="ml-2">Только первая подгруппа</span>
-                                        </label>
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="groupType" value="subgroup2" class="form-radio">
-                                            <span class="ml-2">Только вторая подгруппа</span>
-                                        </label>
-                                        <label class="inline-flex items-center">
-                                            <input type="radio" name="groupType" value="both" class="form-radio">
-                                            <span class="ml-2">Разные занятия для подгрупп</span>
-                                        </label>
-                                    </div>
-                                </div>
+       <!-- Модальное окно для редактирования -->
+<div id="editModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg font-semibold mb-4" id="modalTitle">Редактирование занятия</h3>
+                    <form id="editForm" class="space-y-4">
+                        <!-- Выбор типа распределения -->
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-700">Тип распределения</label>
+                            <div class="space-y-2">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="groupType" value="common" class="form-radio" checked>
+                                    <span class="ml-2">Общее занятие</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="groupType" value="subgroup1" class="form-radio">
+                                    <span class="ml-2">Только первая подгруппа</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="groupType" value="subgroup2" class="form-radio">
+                                    <span class="ml-2">Только вторая подгруппа</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="groupType" value="both" class="form-radio">
+                                    <span class="ml-2">Разные занятия для подгрупп</span>
+                                </label>
+                            </div>
+                        </div>
 
-                                <!-- Общий выбор типа занятия -->
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
-                                    <select name="lessonType" id="commonLessonType"
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                        <option value="">Выберите тип</option>
-                                        {% for type in unique_values.lesson_types %}
+                        <!-- Общий выбор типа занятия (для общего занятия и одной подгруппы) -->
+                        <div id="commonTypeSelect">
+                            <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
+                            <select name="lessonType" id="commonLessonType"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="">Выберите тип</option>
+                                {% for type in unique_values.lesson_types %}
+                                <option value="{{ type }}">
+                                    {% if type == 'л.' %}Лекция
+                                    {% elif type == 'пр.' %}Практика
+                                    {% elif type == 'лаб.' %}Лабораторная
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Форма для общего занятия -->
+                        <div id="commonForm">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                    <select name="subject" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">Выберите предмет</option>
+                                        {% for subject in unique_values.subjects %}
+                                        <option value="{{ subject }}">{{ subject }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                    <select name="teacher" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">Выберите преподавателя</option>
+                                        {% for teacher in unique_values.teachers %}
+                                        <option value="{{ teacher }}">{{ teacher }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                    <select name="auditory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">Выберите аудиторию</option>
+                                        {% for auditory in unique_values.auditories %}
+                                        <option value="{{ auditory }}">{{ auditory }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Формы для подгрупп -->
+                        <div id="subgroupForms" class="hidden space-y-6">
+                            <!-- Первая подгруппа -->
+                            <div class="border-t pt-4">
+                                <h4 class="font-medium text-gray-900 mb-3">Первая подгруппа</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
+                                        <select name="lessonType1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите тип</option>
+                                            {% for type in unique_values.lesson_types %}
                                             <option value="{{ type }}">
                                                 {% if type == 'л.' %}Лекция
                                                 {% elif type == 'пр.' %}Практика
                                                 {% elif type == 'лаб.' %}Лабораторная
                                                 {% endif %}
                                             </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <!-- Форма для общего занятия -->
-                                <div id="commonForm">
-                                    <div class="space-y-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                            <select name="subject"
-                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                <option value="">Выберите предмет</option>
-                                                {% for subject in unique_values.subjects %}
-                                                    <option value="{{ subject }}">{{ subject }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                            <select name="teacher"
-                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                <option value="">Выберите преподавателя</option>
-                                                {% for teacher in unique_values.teachers %}
-                                                    <option value="{{ teacher }}">{{ teacher }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                            <select name="auditory"
-                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                <option value="">Выберите аудиторию</option>
-                                                {% for auditory in unique_values.auditories %}
-                                                    <option value="{{ auditory }}">{{ auditory }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                        <select name="subject1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите предмет</option>
+                                            {% for subject in unique_values.subjects %}
+                                            <option value="{{ subject }}">{{ subject }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                        <select name="teacher1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите преподавателя</option>
+                                            {% for teacher in unique_values.teachers %}
+                                            <option value="{{ teacher }}">{{ teacher }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                        <select name="auditory1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите аудиторию</option>
+                                            {% for auditory in unique_values.auditories %}
+                                            <option value="{{ auditory }}">{{ auditory }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- Формы для подгрупп -->
-                                <div id="subgroupForms" class="hidden space-y-6">
-                                    <!-- Первая подгруппа -->
-                                    <div class="border-t pt-4">
-                                        <h4 class="font-medium text-gray-900 mb-3">Первая подгруппа</h4>
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                                <select name="subject1"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите предмет</option>
-                                                    {% for subject in unique_values.subjects %}
-                                                        <option value="{{ subject }}">{{ subject }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                                <select name="teacher1"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите преподавателя</option>
-                                                    {% for teacher in unique_values.teachers %}
-                                                        <option value="{{ teacher }}">{{ teacher }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                                <select name="auditory1"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите аудиторию</option>
-                                                    {% for auditory in unique_values.auditories %}
-                                                        <option value="{{ auditory }}">{{ auditory }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                        </div>
+                            <!-- Вторая подгруппа -->
+                            <div class="border-t pt-4">
+                                <h4 class="font-medium text-gray-900 mb-3">Вторая подгруппа</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
+                                        <select name="lessonType2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите тип</option>
+                                            {% for type in unique_values.lesson_types %}
+                                            <option value="{{ type }}">
+                                                {% if type == 'л.' %}Лекция
+                                                {% elif type == 'пр.' %}Практика
+                                                {% elif type == 'лаб.' %}Лабораторная
+                                                {% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
-
-                                    <!-- Вторая подгруппа -->
-                                    <div class="border-t pt-4">
-                                        <h4 class="font-medium text-gray-900 mb-3">Вторая подгруппа</h4>
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                                <select name="subject2"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите предмет</option>
-                                                    {% for subject in unique_values.subjects %}
-                                                        <option value="{{ subject }}">{{ subject }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                                <select name="teacher2"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите преподавателя</option>
-                                                    {% for teacher in unique_values.teachers %}
-                                                        <option value="{{ teacher }}">{{ teacher }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                                <select name="auditory2"
-                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                                    <option value="">Выберите аудиторию</option>
-                                                    {% for auditory in unique_values.auditories %}
-                                                        <option value="{{ auditory }}">{{ auditory }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                        </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                        <select name="subject2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите предмет</option>
+                                            {% for subject in unique_values.subjects %}
+                                            <option value="{{ subject }}">{{ subject }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                        <select name="teacher2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите преподавателя</option>
+                                            {% for teacher in unique_values.teachers %}
+                                            <option value="{{ teacher }}">{{ teacher }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                        <select name="auditory2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Выберите аудиторию</option>
+                                            {% for auditory in unique_values.auditories %}
+                                            <option value="{{ auditory }}">{{ auditory }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                            <button type="button" onclick="saveLesson()"
-                                    class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
-                                Сохранить
-                            </button>
-                            <button type="button" onclick="deleteLesson()"
-                                    class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">
-                                Удалить
-                            </button>
-                            <button type="button" onclick="closeModal()"
-                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-                                Отмена
-                            </button>
-                        </div>
-                    </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                    <button type="button" onclick="saveLesson()"
+                            class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
+                        Сохранить
+                    </button>
+                    <button type="button" onclick="deleteLesson()"
+                            class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">
+                        Удалить
+                    </button>
+                    <button type="button" onclick="closeModal()"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                        Отмена
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
+</div>
     </div>
 
     <script>
@@ -321,74 +338,86 @@
         }
 
         function handleCellClick(event) {
-            if (!editMode) return;
+    if (!editMode) return;
 
-            // Находим родительскую ячейку
-            let targetElement = event.target;
-            while (targetElement && targetElement.tagName !== 'TD') {
-                targetElement = targetElement.parentElement;
-            }
+    // Находим родительскую ячейку
+    let targetElement = event.target;
+    while (targetElement && targetElement.tagName !== 'TD') {
+        targetElement = targetElement.parentElement;
+    }
 
-            if (!targetElement) return;
+    if (!targetElement) return;
 
-            currentCell = targetElement;
-            currentDay = parseInt(targetElement.dataset.day);
-            currentTime = parseInt(targetElement.dataset.time);
+    currentCell = targetElement;
+    currentDay = parseInt(targetElement.dataset.day);
+    currentTime = parseInt(targetElement.dataset.time);
 
-            console.log('Clicked cell:', {
-                day: currentDay,
-                time: currentTime
-            });
+    console.log('Clicked cell:', {
+        day: currentDay,
+        time: currentTime
+    });
 
-            // Получаем все div с занятиями в ячейке
-            const lessonDivs = targetElement.querySelectorAll('div[data-lesson]');
+    // Очищаем форму
+    document.getElementById('editForm').reset();
 
-            // Очищаем форму
-            document.getElementById('editForm').reset();
+    // Получаем все div с занятиями в ячейке
+    const lessonDivs = targetElement.querySelectorAll('div[data-lesson]');
 
-            if (lessonDivs.length > 0) {
-                console.log('Найдено занятий:', lessonDivs.length);
+    if (lessonDivs.length > 0) {
+        console.log('Найдено занятий:', lessonDivs.length);
 
-                let lessons = [];
-                lessonDivs.forEach(div => {
-                    try {
-                        lessons.push({
-                            subject: div.dataset.subject,
-                            type: div.dataset.type,
-                            subgroup: parseInt(div.dataset.subgroup || '0'),
-                            teachers: [{teacher_name: div.dataset.teacher}],
-                            auditories: [{auditory_name: div.dataset.auditory}]
-                        });
-                    } catch (e) {
-                        console.error('Ошибка при обработке занятия:', e);
-                    }
-                });
-
-                // Сортируем занятия по номеру подгруппы
-                lessons.sort((a, b) => a.subgroup - b.subgroup);
-
-                if (lessons.length === 1) {
-                    // Одно занятие
-                    const lesson = lessons[0];
-                    if (lesson.subgroup === 0) {
-                        setGroupType('common');
-                    } else {
-                        setGroupType(`subgroup${lesson.subgroup}`);
-                    }
-                    fillCommonForm(lesson);
-                } else if (lessons.length >= 2) {
-                    // Два занятия - разные подгруппы
-                    setGroupType('both');
-                    fillSubgroupForms(lessons);
+        let lessons = [];
+        lessonDivs.forEach(div => {
+            try {
+                const lessonData = JSON.parse(div.dataset.lesson);
+                if (Array.isArray(lessonData)) {
+                    lessons = lessons.concat(lessonData);
+                } else {
+                    lessons.push(lessonData);
                 }
-            } else {
-                // Новое занятие
-                setGroupType('common');
+            } catch (e) {
+                console.error('Ошибка при разборе данных занятия:', e);
+                try {
+                    // Пробуем собрать данные из отдельных атрибутов
+                    lessons.push({
+                        subject: div.dataset.subject,
+                        type: div.dataset.type,
+                        subgroup: parseInt(div.dataset.subgroup || '0'),
+                        teachers: [{ teacher_name: div.dataset.teacher }],
+                        auditories: [{ auditory_name: div.dataset.auditory }]
+                    });
+                } catch (e2) {
+                    console.error('Ошибка при сборе данных из атрибутов:', e2);
+                }
             }
+        });
 
-            const modal = document.getElementById('editModal');
-            modal.classList.remove('hidden');
+        // Сортируем занятия по номеру подгруппы
+        lessons.sort((a, b) => a.subgroup - b.subgroup);
+
+        if (lessons.length === 1) {
+            // Одно занятие
+            const lesson = lessons[0];
+            if (lesson.subgroup === 0) {
+                setGroupType('common');
+                fillCommonForm(lesson);
+            } else {
+                setGroupType(`subgroup${lesson.subgroup}`);
+                fillCommonForm(lesson);
+            }
+        } else if (lessons.length >= 2) {
+            // Два занятия - разные подгруппы
+            setGroupType('both');
+            fillSubgroupForms(lessons);
         }
+    } else {
+        // Новое занятие
+        setGroupType('common');
+    }
+
+    const modal = document.getElementById('editModal');
+    modal.classList.remove('hidden');
+}
 
         function setGroupType(type) {
             const radio = document.querySelector(`input[name="groupType"][value="${type}"]`);
@@ -399,93 +428,122 @@
         }
 
         function toggleForms(type) {
-            const commonForm = document.getElementById('commonForm');
-            const subgroupForms = document.getElementById('subgroupForms');
+    console.log('Переключение формы на тип:', type);
 
-            if (type === 'both') {
-                commonForm.classList.add('hidden');
-                subgroupForms.classList.remove('hidden');
-            } else {
-                commonForm.classList.remove('hidden');
-                subgroupForms.classList.add('hidden');
-            }
-        }
+    const commonForm = document.getElementById('commonForm');
+    const subgroupForms = document.getElementById('subgroupForms');
+    const commonTypeSelect = document.getElementById('commonTypeSelect');
+
+    if (type === 'both') {
+        // Для двух подгрупп
+        commonForm.classList.add('hidden');
+        subgroupForms.classList.remove('hidden');
+        commonTypeSelect.classList.add('hidden');
+
+        // Сбрасываем значения общей формы
+        const commonSelects = commonForm.querySelectorAll('select');
+        commonSelects.forEach(select => select.value = '');
+
+        // Убираем подсветку ошибок, если они были
+        const allSelects = document.querySelectorAll('select');
+        allSelects.forEach(select => {
+            select.classList.remove('border-red-500', 'ring-red-500');
+        });
+    } else {
+        // Для общего занятия или одной подгруппы
+        commonForm.classList.remove('hidden');
+        subgroupForms.classList.add('hidden');
+        commonTypeSelect.classList.remove('hidden');
+
+        // Сбрасываем значения форм подгрупп
+        const subgroupSelects = subgroupForms.querySelectorAll('select');
+        subgroupSelects.forEach(select => select.value = '');
+
+        // Убираем подсветку ошибок, если они были
+        const allSelects = document.querySelectorAll('select');
+        allSelects.forEach(select => {
+            select.classList.remove('border-red-500', 'ring-red-500');
+        });
+    }
+}
 
         function fillCommonForm(lesson) {
-            if (lesson) {
-                // Заполняем тип занятия
-                const typeSelect = document.querySelector('#commonLessonType');
-                if (typeSelect) {
-                    typeSelect.value = lesson.type || '';
-                }
-
-                // Заполняем предмет
-                const subjectSelect = document.querySelector('select[name="subject"]');
-                if (subjectSelect) {
-                    subjectSelect.value = lesson.subject || '';
-                }
-
-                // Заполняем преподавателя
-                const teacherSelect = document.querySelector('select[name="teacher"]');
-                if (teacherSelect && lesson.teachers && lesson.teachers.length > 0) {
-                    teacherSelect.value = lesson.teachers[0].teacher_name || '';
-                }
-
-                // Заполняем аудиторию
-                const auditorySelect = document.querySelector('select[name="auditory"]');
-                if (auditorySelect && lesson.auditories && lesson.auditories.length > 0) {
-                    auditorySelect.value = lesson.auditories[0].auditory_name || '';
-                }
-
-                console.log('Заполнены данные для формы:', {
-                    subject: lesson.subject,
-                    type: lesson.type,
-                    teacher: lesson.teachers?.[0]?.teacher_name,
-                    auditory: lesson.auditories?.[0]?.auditory_name
-                });
-            }
+    if (lesson) {
+        // Заполняем тип занятия
+        const typeSelect = document.querySelector('#commonLessonType');
+        if (typeSelect) {
+            typeSelect.value = lesson.type || '';
+            console.log('Заполнен тип занятия:', lesson.type);
         }
+
+        // Заполняем предмет
+        const subjectSelect = document.querySelector('select[name="subject"]');
+        if (subjectSelect) {
+            subjectSelect.value = lesson.subject || '';
+            console.log('Заполнен предмет:', lesson.subject);
+        }
+
+        // Заполняем преподавателя
+        const teacherSelect = document.querySelector('select[name="teacher"]');
+        if (teacherSelect && lesson.teachers && lesson.teachers.length > 0) {
+            teacherSelect.value = lesson.teachers[0].teacher_name || '';
+            console.log('Заполнен преподаватель:', lesson.teachers[0].teacher_name);
+        }
+
+        // Заполняем аудиторию
+        const auditorySelect = document.querySelector('select[name="auditory"]');
+        if (auditorySelect && lesson.auditories && lesson.auditories.length > 0) {
+            auditorySelect.value = lesson.auditories[0].auditory_name || '';
+            console.log('Заполнена аудитория:', lesson.auditories[0].auditory_name);
+        }
+
+        console.log('Заполнены данные для формы:', {
+            subject: lesson.subject,
+            type: lesson.type,
+            teacher: lesson.teachers?.[0]?.teacher_name,
+            auditory: lesson.auditories?.[0]?.auditory_name
+        });
+    }
+}
 
         function fillSubgroupForms(lessons) {
-            // Заполняем общий тип занятия
-            if (lessons[0] && lessons[0].type) {
-                const typeSelect = document.querySelector('#commonLessonType');
-                if (typeSelect) {
-                    typeSelect.value = lessons[0].type;
-                }
-            }
+    console.log('Заполнение форм для подгрупп:', lessons);
 
-            lessons.forEach(lesson => {
-                if (!lesson) return;
+    lessons.forEach(lesson => {
+        if (!lesson) return;
 
-                const index = lesson.subgroup;
-                console.log(`Заполнение данных для подгруппы ${index}:`, lesson);
+        const index = lesson.subgroup;
+        console.log(`Заполнение данных для подгруппы ${index}:`, lesson);
 
-                // Заполняем предмет
-                const subjectSelect = document.querySelector(`select[name="subject${index}"]`);
-                if (subjectSelect) {
-                    subjectSelect.value = lesson.subject || '';
-                }
-
-                // Заполняем преподавателя
-                const teacherSelect = document.querySelector(`select[name="teacher${index}"]`);
-                if (teacherSelect && lesson.teachers && lesson.teachers.length > 0) {
-                    teacherSelect.value = lesson.teachers[0].teacher_name || '';
-                }
-
-                // Заполняем аудиторию
-                const auditorySelect = document.querySelector(`select[name="auditory${index}"]`);
-                if (auditorySelect && lesson.auditories && lesson.auditories.length > 0) {
-                    auditorySelect.value = lesson.auditories[0].auditory_name || '';
-                }
-
-                console.log(`Заполнены данные для подгруппы ${index}:`, {
-                    subject: lesson.subject,
-                    teacher: lesson.teachers?.[0]?.teacher_name,
-                    auditory: lesson.auditories?.[0]?.auditory_name
-                });
-            });
+        // Заполняем тип занятия для конкретной подгруппы
+        const typeSelect = document.querySelector(`select[name="lessonType${index}"]`);
+        if (typeSelect) {
+            typeSelect.value = lesson.type || '';
+            console.log(`Заполнен тип занятия для подгруппы ${index}:`, lesson.type);
         }
+
+        // Заполняем предмет
+        const subjectSelect = document.querySelector(`select[name="subject${index}"]`);
+        if (subjectSelect) {
+            subjectSelect.value = lesson.subject || '';
+            console.log(`Заполнен предмет для подгруппы ${index}:`, lesson.subject);
+        }
+
+        // Заполняем преподавателя
+        const teacherSelect = document.querySelector(`select[name="teacher${index}"]`);
+        if (teacherSelect && lesson.teachers && lesson.teachers.length > 0) {
+            teacherSelect.value = lesson.teachers[0].teacher_name || '';
+            console.log(`Заполнен преподаватель для подгруппы ${index}:`, lesson.teachers[0].teacher_name);
+        }
+
+        // Заполняем аудиторию
+        const auditorySelect = document.querySelector(`select[name="auditory${index}"]`);
+        if (auditorySelect && lesson.auditories && lesson.auditories.length > 0) {
+            auditorySelect.value = lesson.auditories[0].auditory_name || '';
+            console.log(`Заполнена аудитория для подгруппы ${index}:`, lesson.auditories[0].auditory_name);
+        }
+    });
+}
 
         function deleteLesson() {
             console.log('Удаление пары...', {
@@ -544,155 +602,160 @@
         }
 
         function saveLesson() {
-            console.log('Сохранение...', {
-                currentDay,
-                currentTime,
-                currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
-            });
+    console.log('Сохранение...', {
+        currentDay,
+        currentTime,
+        currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
+    });
 
-            if (!currentDay || !currentTime) {
-                console.error('Отсутствуют day или time');
-                alert('Ошибка: не удалось определить день или время пары');
+    if (!currentDay || !currentTime) {
+        showNotification('Ошибка: не удалось определить день или время пары', 'ERROR');
+        return;
+    }
+
+    // Получаем тип распределения
+    const groupType = document.querySelector('input[name="groupType"]:checked').value;
+    let lessonData;
+
+    try {
+        if (groupType === 'common') {
+            // Общее занятие
+            const subject = document.querySelector('select[name="subject"]').value;
+            const type = document.querySelector('#commonLessonType').value;
+            const teacher = document.querySelector('select[name="teacher"]').value;
+            const auditory = document.querySelector('select[name="auditory"]').value;
+
+            if (!subject || !type || !teacher || !auditory) {
+                showNotification('Пожалуйста, заполните все поля', 'WARNING');
+                highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
                 return;
             }
 
-            // Получаем тип занятия из общего поля
-            const lessonType = document.querySelector('#commonLessonType').value;
+            lessonData = [{
+                subject: subject,
+                type: type,
+                subgroup: 0,
+                time: currentTime,
+                teachers: [{ teacher_name: teacher, teacher_id: "1", teacher_post: "" }],
+                auditories: [{ auditory_name: auditory }],
+                Lesson_ID_Num: `${currentDay}_${currentTime}_0`
+            }];
+        } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
+            // Занятие для одной подгруппы
+            const subgroup = groupType === 'subgroup1' ? 1 : 2;
+            const subject = document.querySelector('select[name="subject"]').value;
+            const type = document.querySelector('#commonLessonType').value;
+            const teacher = document.querySelector('select[name="teacher"]').value;
+            const auditory = document.querySelector('select[name="auditory"]').value;
 
-            // Проверяем тип занятия
-            if (!lessonType) {
-                showNotification('Пожалуйста, выберите тип занятия', 'WARNING');
-                document.querySelector('#commonLessonType').classList.add('border-red-500', 'ring-red-500');
+            if (!subject || !type || !teacher || !auditory) {
+                showNotification('Пожалуйста, заполните все поля', 'WARNING');
+                highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
                 return;
             }
 
-            // Получаем тип распределения
-            const groupType = document.querySelector('input[name="groupType"]:checked').value;
+            lessonData = [{
+                subject: subject,
+                type: type,
+                subgroup: subgroup,
+                time: currentTime,
+                teachers: [{ teacher_name: teacher, teacher_id: "1", teacher_post: "" }],
+                auditories: [{ auditory_name: auditory }],
+                Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`
+            }];
+        } else if (groupType === 'both') {
+            // Занятия для обеих подгрупп
+            const subject1 = document.querySelector('select[name="subject1"]').value;
+            const subject2 = document.querySelector('select[name="subject2"]').value;
+            const type1 = document.querySelector('select[name="lessonType1"]').value;
+            const type2 = document.querySelector('select[name="lessonType2"]').value;
+            const teacher1 = document.querySelector('select[name="teacher1"]').value;
+            const teacher2 = document.querySelector('select[name="teacher2"]').value;
+            const auditory1 = document.querySelector('select[name="auditory1"]').value;
+            const auditory2 = document.querySelector('select[name="auditory2"]').value;
 
-            let lessonData;
+            // Проверяем поля первой подгруппы
+            if (!subject1 || !type1 || !teacher1 || !auditory1) {
+                showNotification('Пожалуйста, заполните все поля для первой подгруппы', 'WARNING');
+                highlightEmptyFields(['subject1', 'lessonType1', 'teacher1', 'auditory1']);
+                return;
+            }
 
-            try {
-                if (groupType === 'common') {
-                    // Общее занятие
-                    const subject = document.querySelector('select[name="subject"]').value;
-                    const teacher = document.querySelector('select[name="teacher"]').value;
-                    const auditory = document.querySelector('select[name="auditory"]').value;
+            // Проверяем поля второй подгруппы
+            if (!subject2 || !type2 || !teacher2 || !auditory2) {
+                showNotification('Пожалуйста, заполните все поля для второй подгруппы', 'WARNING');
+                highlightEmptyFields(['subject2', 'lessonType2', 'teacher2', 'auditory2']);
+                return;
+            }
 
-                    if (!subject || !teacher || !auditory) {
-                        showNotification('Пожалуйста, заполните все поля', 'WARNING');
-                        return;
-                    }
-                    lessonData = [{
-                        subject: subject,
-                        type: lessonType,
-                        subgroup: 0,
-                        time: currentTime,
-                        teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-                        auditories: [{auditory_name: auditory}],
-                        Lesson_ID_Num: `${currentDay}_${currentTime}_0`
-                    }];
-                } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
-                    // Занятие для одной подгруппы
-                    const subgroup = groupType === 'subgroup1' ? 1 : 2;
-                    const subject = document.querySelector('select[name="subject"]').value;
-                    const teacher = document.querySelector('select[name="teacher"]').value;
-                    const auditory = document.querySelector('select[name="auditory"]').value;
-
-                    if (!subject || !teacher || !auditory) {
-                        alert('Пожалуйста, заполните все поля');
-                        return;
-                    }
-
-                    lessonData = [{
-                        subject: subject,
-                        type: lessonType,
-                        subgroup: subgroup,
-                        time: currentTime,
-                        teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-                        auditories: [{auditory_name: auditory}],
-                        Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`
-                    }];
-                } else if (groupType === 'both') {
-                    // Занятия для обеих подгрупп
-                    const subject1 = document.querySelector('select[name="subject1"]').value;
-                    const subject2 = document.querySelector('select[name="subject2"]').value;
-                    const teacher1 = document.querySelector('select[name="teacher1"]').value;
-                    const teacher2 = document.querySelector('select[name="teacher2"]').value;
-                    const auditory1 = document.querySelector('select[name="auditory1"]').value;
-                    const auditory2 = document.querySelector('select[name="auditory2"]').value;
-
-                    // Выводим значения для отладки
-                    console.log('Значения полей:', {
-                        type: lessonType,
-                        subject1, subject2,
-                        teacher1, teacher2,
-                        auditory1, auditory2
-                    });
-
-                    // Проверяем все поля
-                    if (!subject1 || !subject2 || !teacher1 || !teacher2 || !auditory1 || !auditory2) {
-                        alert('Пожалуйста, заполните все поля для обеих подгрупп');
-                        return;
-                    }
-
-                    lessonData = [
-                        {
-                            subject: subject1,
-                            type: lessonType,
-                            subgroup: 1,
-                            time: currentTime,
-                            teachers: [{teacher_name: teacher1, teacher_id: "1", teacher_post: ""}],
-                            auditories: [{auditory_name: auditory1}],
-                            Lesson_ID_Num: `${currentDay}_${currentTime}_1`
-                        },
-                        {
-                            subject: subject2,
-                            type: lessonType,
-                            subgroup: 2,
-                            time: currentTime,
-                            teachers: [{teacher_name: teacher2, teacher_id: "2", teacher_post: ""}],
-                            auditories: [{auditory_name: auditory2}],
-                            Lesson_ID_Num: `${currentDay}_${currentTime}_2`
-                        }
-                    ];
-                }
-
-                const requestData = {
-                    group_name: '{{ group_name }}',
-                    day: currentDay,
+            lessonData = [
+                {
+                    subject: subject1,
+                    type: type1,
+                    subgroup: 1,
                     time: currentTime,
-                    lessons: lessonData
-                };
-
-                console.log('Отправляемые данные:', requestData);
-
-                fetch('/timetable/api/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestData)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Ответ сервера:', data);
-                        if (data.status === 'success') {
-                            closeModal();
-                            window.location.reload();
-                        } else {
-                            console.error('Ошибка сохранения:', data.error);
-                            alert('Ошибка сохранения изменений: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Ошибка запроса:', error);
-                        alert('Ошибка сохранения изменений: ' + error);
-                    });
-            } catch (error) {
-                console.error('Ошибка при формировании данных:', error);
-                alert('Ошибка при формировании данных: ' + error);
-            }
+                    teachers: [{ teacher_name: teacher1, teacher_id: "1", teacher_post: "" }],
+                    auditories: [{ auditory_name: auditory1 }],
+                    Lesson_ID_Num: `${currentDay}_${currentTime}_1`
+                },
+                {
+                    subject: subject2,
+                    type: type2,
+                    subgroup: 2,
+                    time: currentTime,
+                    teachers: [{ teacher_name: teacher2, teacher_id: "2", teacher_post: "" }],
+                    auditories: [{ auditory_name: auditory2 }],
+                    Lesson_ID_Num: `${currentDay}_${currentTime}_2`
+                }
+            ];
         }
+
+        const requestData = {
+            group_name: '{{ group_name }}',
+            day: currentDay,
+            time: currentTime,
+            lessons: lessonData
+        };
+
+        console.log('Отправляемые данные:', requestData);
+
+        fetch('/timetable/api/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Ответ сервера:', data);
+            if (data.status === 'success') {
+                showNotification('Изменения сохранены', 'SUCCESS');
+                closeModal();
+                window.location.reload();
+            } else {
+                throw new Error(data.error || 'Ошибка сохранения');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка запроса:', error);
+            showNotification('Ошибка сохранения изменений: ' + error.message, 'ERROR');
+        });
+    } catch (error) {
+        console.error('Ошибка при формировании данных:', error);
+        showNotification('Ошибка при формировании данных: ' + error.message, 'ERROR');
+    }
+}
+
+// Вспомогательная функция для подсветки пустых полей
+function highlightEmptyFields(fieldNames) {
+    fieldNames.forEach(name => {
+        const field = document.querySelector(`select[name="${name}"]`);
+        if (field && !field.value) {
+            field.classList.add('border-red-500', 'ring-red-500');
+        }
+    });
+}
 
         function closeModal() {
             const modal = document.getElementById('editModal');

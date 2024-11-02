@@ -233,44 +233,6 @@
                     "Lesson_ID_Num": "1_8_4"
                   },
                   {
-                    "subject": "Защищенные информационные системы",
-                    "type": "пр.",
-                    "subgroup": 1,
-                    "time": 4,
-                    "teachers": [
-                      {
-                        "teacher_name": "Леусенко В.В.",
-                        "teacher_id": "1",
-                        "teacher_post": ""
-                      }
-                    ],
-                    "auditories": [
-                      {
-                        "auditory_name": "18.604"
-                      }
-                    ],
-                    "Lesson_ID_Num": "3_4_1"
-                  },
-                  {
-                    "subject": "Иностранный язык",
-                    "type": "пр.",
-                    "subgroup": 2,
-                    "time": 4,
-                    "teachers": [
-                      {
-                        "teacher_name": "Лопушанский И.А.",
-                        "teacher_id": "2",
-                        "teacher_post": ""
-                      }
-                    ],
-                    "auditories": [
-                      {
-                        "auditory_name": "18.708"
-                      }
-                    ],
-                    "Lesson_ID_Num": "3_4_2"
-                  },
-                  {
                     "subject": "Безопасная эксплуатация инженерных систем и оборудования",
                     "type": "пр.",
                     "subgroup": 1,
@@ -307,6 +269,44 @@
                       }
                     ],
                     "Lesson_ID_Num": "3_1_2"
+                  },
+                  {
+                    "subject": "Защищенные информационные системы",
+                    "type": "пр.",
+                    "subgroup": 1,
+                    "time": 4,
+                    "teachers": [
+                      {
+                        "teacher_name": "Леусенко В.В.",
+                        "teacher_id": "1",
+                        "teacher_post": ""
+                      }
+                    ],
+                    "auditories": [
+                      {
+                        "auditory_name": "18.604"
+                      }
+                    ],
+                    "Lesson_ID_Num": "3_4_1"
+                  },
+                  {
+                    "subject": "Иностранный язык",
+                    "type": "л.",
+                    "subgroup": 2,
+                    "time": 4,
+                    "teachers": [
+                      {
+                        "teacher_name": "Лопушанский И.А.",
+                        "teacher_id": "2",
+                        "teacher_post": ""
+                      }
+                    ],
+                    "auditories": [
+                      {
+                        "auditory_name": "18.708"
+                      }
+                    ],
+                    "Lesson_ID_Num": "3_4_2"
                   }
                 ]
               },
