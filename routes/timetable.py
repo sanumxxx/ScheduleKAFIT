@@ -171,23 +171,45 @@ def edit_timetable(group_name):
 
 
 @bp.route('/api/update', methods=['POST'])
-@login_required
 def update_timetable():
-    """API для обновления расписания"""
     data = request.get_json()
 
-    group_name = data.get('group_name')
-    day_index = data.get('day_index')
-    lesson_data = data.get('lesson')
+    try:
+        group_name = data.get('group_name')
+        day = data.get('day')
+        time = data.get('time')
+        lessons = data.get('lessons')
 
-    if not all([group_name, isinstance(day_index, int), lesson_data]):
-        return jsonify({"error": "Invalid data"}), 400
+        print("Получены данные:", {
+            "group_name": group_name,
+            "day": day,
+            "time": time,
+            "lessons": lessons
+        })
 
-    success = timetable_handler.update_lesson(group_name, day_index, lesson_data)
+        if not all([group_name is not None, day is not None, time is not None, isinstance(lessons, list)]):
+            missing = []
+            if group_name is None: missing.append('group_name')
+            if day is None: missing.append('day')
+            if time is None: missing.append('time')
+            if not isinstance(lessons, list): missing.append('lessons')
+            error_msg = f"Missing required data: {', '.join(missing)}"
+            print("Ошибка валидации:", error_msg)
+            return jsonify({"status": "error", "error": error_msg}), 400
 
-    if success:
-        return jsonify({"message": "Updated successfully"})
-    return jsonify({"error": "Update failed"}), 500
+        # Обновляем данные
+        success = timetable_handler.update_lessons(group_name, day, time, lessons)
+
+        if success:
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "error": "Failed to update timetable"}), 500
+
+    except Exception as e:
+        print(f"Error updating timetable: {str(e)}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 
 
 

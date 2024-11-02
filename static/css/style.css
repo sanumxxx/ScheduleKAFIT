@@ -166,3 +166,46 @@ h1 {
     color: #666;
     font-size: 0.8rem;
 }
+.notification-wrapper {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+    transition: all 0.3s ease-in-out;
+    opacity: 0;
+    transform: translateY(-1rem);
+    visibility: hidden;
+}
+
+.notification-wrapper.show {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.notification {
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.notification.success {
+    background-color: #34D399;
+    color: white;
+}
+
+.notification.error {
+    background-color: #EF4444;
+    color: white;
+}
+
+.notification.warning {
+    background-color: #F59E0B;
+    color: white;
+}
