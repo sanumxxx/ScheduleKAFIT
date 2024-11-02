@@ -33,14 +33,22 @@ def group_timetable(group_name):
 
     # Получаем список всех недель
     weeks = []
-    if isinstance(timetable_data, list) and len(timetable_data) > 0:
-        for week_data in timetable_data[0].get('timetable', []):
-            weeks.append({
-                'week_number': week_data.get('week_number'),
-                'date_start': week_data.get('date_start'),
-                'date_end': week_data.get('date_end')
-            })
+    if isinstance(timetable_data, list):
+        for timetable_item in timetable_data:  # Перебираем все элементы в корневом списке
+            if 'timetable' in timetable_item:
+                for week_data in timetable_item['timetable']:
+                    weeks.append({
+                        'week_number': week_data.get('week_number'),
+                        'date_start': week_data.get('date_start'),
+                        'date_end': week_data.get('date_end')
+                    })
 
+    # Сортируем недели по номеру
+    weeks.sort(key=lambda x: x['week_number'])
+
+    print("Доступные недели:", weeks)  # Отладочный вывод
+
+    # Если неделя не выбрана, берем первую
     if not selected_week and weeks:
         selected_week = str(weeks[0].get('week_number'))
 
@@ -63,7 +71,9 @@ def group_timetable(group_name):
 
     # Создаем функцию-обертку для передачи в шаблон
     def get_lessons_wrapper(timetable, day, time):
-        return get_lessons(timetable, day, time, group_name)
+        return get_lessons(timetable, day, time, group_name, selected_week)
+
+    print(f"Выбранная неделя: {selected_week}")  # Отладочный вывод
 
     return render_template('timetable/group.html',
                            group_name=group_name,
@@ -137,23 +147,29 @@ def get_group_timetable(group_name, timetable_data, selected_week=None):
     return None, None
 
 
-def get_lessons(timetable_data, day, time_slot, group_name):
-    """Получение занятий для конкретного дня и времени"""
+def get_lessons(timetable_data, day, time_slot, group_name, selected_week=None):
+    """Получение занятий для конкретного дня, времени и недели"""
     try:
-        if isinstance(timetable_data, list) and len(timetable_data) > 0:
-            weeks_data = timetable_data[0].get('timetable', [])
-            for week in weeks_data:
-                for group in week.get('groups', []):
-                    if group.get('group_name') == group_name:
-                        for day_data in group.get('days', []):
-                            if day_data.get('weekday') == day:
-                                lessons = [
-                                    lesson for lesson in day_data.get('lessons', [])
-                                    if lesson.get('time') == time_slot
-                                ]
-                                if lessons:
-                                    print(f"Найдены занятия для группы {group_name}, день {day}, пара {time_slot}")
-                                return lessons
+        if isinstance(timetable_data, list):
+            for timetable_item in timetable_data:
+                if 'timetable' in timetable_item:
+                    for week in timetable_item['timetable']:
+                        # Проверяем номер недели, если он указан
+                        if selected_week and str(week.get('week_number')) != str(selected_week):
+                            continue
+
+                        for group in week.get('groups', []):
+                            if group.get('group_name') == group_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        lessons = [
+                                            lesson for lesson in day_data.get('lessons', [])
+                                            if lesson.get('time') == time_slot
+                                        ]
+                                        if lessons:
+                                            print(
+                                                f"Найдены занятия для группы {group_name}, день {day}, пара {time_slot}, неделя {week.get('week_number')}")
+                                            return lessons
         return None
     except Exception as e:
         print(f"Ошибка в get_lessons: {str(e)}")
