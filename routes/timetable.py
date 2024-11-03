@@ -14,7 +14,7 @@ import os
 from functools import wraps
 from utils.telegram_notifier import notify_view
 from flask import current_app
-from utils.telegram_notifier import send_telegram_notification
+
 
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 timetable_handler = TimetableHandler()
@@ -23,58 +23,9 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 
-def notify_schedule_view(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        try:
-            # Получаем токен внутри контекста запроса
-            bot_token = current_app.config.get('TELEGRAM_BOT_TOKEN')
-            if not bot_token:
-                return f(*args, **kwargs)
 
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            path = request.path
-
-            # Определяем тип просмотра и детали
-            view_type = "расписания"
-            details = ""
-
-            if 'group' in path:
-                group_name = kwargs.get('group_name', '')
-                view_type = f"расписания группы"
-                details = f"Группа: <b>{group_name}</b>"
-            elif 'teacher' in path:
-                teacher_name = kwargs.get('teacher_name', '')
-                view_type = f"расписания преподавателя"
-                details = f"Преподаватель: <b>{teacher_name}</b>"
-            elif 'room' in path:
-                room_name = kwargs.get('room_name', '')
-                view_type = f"расписания аудитории"
-                details = f"Аудитория: <b>{room_name}</b>"
-            elif 'free_rooms' in path:
-                view_type = "списка свободных аудиторий"
-
-            week = request.args.get('week', 'текущая')
-
-            message = (
-                f"👀 <b>Просмотр {view_type}</b>\n\n"
-                f"🕒 Время: {timestamp}\n"
-                f"📅 Неделя: {week}\n"
-            )
-
-            if details:
-                message += f"{details}\n"
-
-            send_telegram_notification(bot_token, message)
-
-        except Exception as e:
-            print(f"Error in notification wrapper: {e}")
-
-        return f(*args, **kwargs)
-
-    return decorated_function
 @bp.route('/')
-@notify_schedule_view
+@notify_view
 def index():
     """Главная страница"""
     timetable_data = timetable_handler.read_timetable()
@@ -246,7 +197,7 @@ def admin_required(f):
 
 
 @bp.route('/group/<group_name>')
-@notify_schedule_view
+@notify_view
 def group_timetable(group_name):
     """Страница расписания группы"""
     timetable_data = timetable_handler.read_timetable()
@@ -347,7 +298,7 @@ def group_timetable(group_name):
                            unique_values=unique_values)
 
 @bp.route('/free_rooms', methods=['GET', 'POST'])
-@notify_schedule_view
+@notify_view
 def free_rooms():
     """Поиск свободных аудиторий"""
     timetable_data = timetable_handler.read_timetable()
@@ -526,7 +477,7 @@ def get_lessons(timetable, day, time, group_name, selected_week=None):
 @bp.route('/edit/<group_name>')
 @login_required  # Добавляем декоратор
 @admin_required  # Добавляем наш кастомный декоратор
-@notify_schedule_view
+@notify_view
 def edit_timetable(group_name):
     """Страница редактирования расписания группы"""
     timetable = timetable_handler.get_group_timetable(group_name)
