@@ -3,13 +3,46 @@ from flask import request, current_app
 from functools import wraps
 from datetime import datetime
 import requests
+import socket
+import netifaces
 
 
-def get_client_ip():
-    """Получение IP клиента"""
-    if request.environ.get('REMOTE_PORT'):
-        # Получаем IP и порт клиента
-        return f"{request.remote_addr}:{request.environ.get('REMOTE_PORT')}"
+def get_real_ip():
+    """Получение реального IP-адреса"""
+    try:
+        # Получаем список всех сетевых интерфейсов
+        interfaces = netifaces.interfaces()
+
+        for interface in interfaces:
+            # Пропускаем loopback
+            if interface.startswith('lo'):
+                continue
+
+            addrs = netifaces.ifaddresses(interface)
+            # Ищем IPv4 адреса
+            if netifaces.AF_INET in addrs:
+                for addr in addrs[netifaces.AF_INET]:
+                    ip = addr['addr']
+                    # Пропускаем локальные адреса
+                    if not ip.startswith('127.'):
+                        if request.environ.get('REMOTE_PORT'):
+                            return f"{ip}:{request.environ.get('REMOTE_PORT')}"
+                        return ip
+    except:
+        pass
+
+    # Запасной вариант - получаем IP через подключение
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        if request.environ.get('REMOTE_PORT'):
+            return f"{ip}:{request.environ.get('REMOTE_PORT')}"
+        return ip
+    except:
+        pass
+
     return request.remote_addr
 
 
@@ -19,7 +52,6 @@ def get_browser_info():
     browser = "Неизвестно"
     system = "Неизвестно"
 
-    # Определение браузера
     if 'edge' in user_agent:
         browser = "Edge"
     elif 'chrome' in user_agent:
@@ -31,7 +63,6 @@ def get_browser_info():
     elif 'opera' in user_agent:
         browser = "Opera"
 
-    # Определение системы
     if 'windows' in user_agent:
         system = "Windows"
     elif 'android' in user_agent:
@@ -76,7 +107,7 @@ def notify_view(f):
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             path = request.path
-            client_ip = get_client_ip()
+            client_ip = get_real_ip()
             browser, system = get_browser_info()
 
             # Определяем тип просмотра и детали
@@ -99,23 +130,20 @@ def notify_view(f):
                 view_type = "списка свободных аудиторий"
 
             week = request.args.get('week', 'текущая')
+            endpoint = request.endpoint if request.endpoint else 'Unknown'
 
             message = (
                 f"👀 <b>Просмотр {view_type}</b>\n\n"
                 f"🕒 Время: {timestamp}\n"
-                f"🌐 IP: {client_ip}\n"
+                f"🌐 IP клиента: {client_ip}\n"
                 f"💻 Устройство: {system}\n"
                 f"🌍 Браузер: {browser}\n"
+                f"🔗 Страница: {endpoint}\n"
                 f"📅 Неделя: {week}\n"
             )
 
             if details:
                 message += f"{details}\n"
-
-            print(f"Request info:")
-            print(f"Remote addr: {request.remote_addr}")
-            print(f"Headers: {dict(request.headers)}")
-            print(f"Environment: {request.environ}")
 
             send_notification(message)
 

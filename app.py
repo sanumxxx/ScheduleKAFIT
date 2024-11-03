@@ -3,7 +3,7 @@ from config.config import Config
 from flask_login import LoginManager, UserMixin
 from routes import timetable, auth, api
 import os
-
+import socket
 
 
 from routes.auth import init_login_manager
@@ -75,5 +75,9 @@ if __name__ == '__main__':
     create_directories()
     app = create_app()
 
-    app.config['PROXY_FIX'] = False
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=True)
+    # Получаем IP адрес машины
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+
+    print(f"Server running on {local_ip}:5000")
+    app.run(host='0.0.0.0', port=5000, debug=True)
