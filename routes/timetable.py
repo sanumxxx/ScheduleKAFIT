@@ -1,19 +1,47 @@
 # routes/timetable.py
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, redirect, url_for, session, json, flash, \
+    get_flashed_messages
+from flask.app import Flask
+from config.config import Config
+import tempfile
+import pickle
+import uuid
+
 from services.json_handler import TimetableHandler
-from flask_login import login_required
+from flask_login import login_required, current_user
+import os
+from functools import wraps
 
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 timetable_handler = TimetableHandler()
+app = Flask(__name__)
+
+app.config.from_object(Config)
 
 
 # routes/timetable.py
 # routes/timetable.py
 @bp.route('/')
 def index():
-    """Главная страница с выбором группы/преподавателя/аудитории"""
+    """Главная страница"""
     timetable_data = timetable_handler.read_timetable()
 
+    # Собираем информацию о неделях
+    loaded_weeks = []
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    loaded_weeks.append({
+                        'week_number': week.get('week_number'),
+                        'date_start': week.get('date_start'),
+                        'date_end': week.get('date_end')
+                    })
+
+    # Сортируем недели по номеру
+    loaded_weeks.sort(key=lambda x: x['week_number'])
+
+    # Собираем остальные данные
     groups = set()
     teachers = set()
     rooms = set()
@@ -23,27 +51,65 @@ def index():
             if 'timetable' in data:
                 for week in data['timetable']:
                     for group in week.get('groups', []):
-                        # Добавляем группу
                         if 'group_name' in group:
                             groups.add(group['group_name'])
 
-                        # Собираем информацию о преподавателях и аудиториях из занятий
                         for day in group.get('days', []):
                             for lesson in day.get('lessons', []):
-                                # Добавляем преподавателей
                                 for teacher in lesson.get('teachers', []):
                                     if teacher.get('teacher_name'):
                                         teachers.add(teacher['teacher_name'])
 
-                                # Добавляем аудитории
                                 for auditory in lesson.get('auditories', []):
                                     if auditory.get('auditory_name'):
                                         rooms.add(auditory['auditory_name'])
 
     return render_template('timetable/index.html',
+                           is_admin=session.get('is_admin', False),
+                           loaded_weeks=loaded_weeks,
+                           flash_messages=get_flashed_messages(with_categories=True),
                            groups=sorted(list(groups)),
                            teachers=sorted(list(teachers)),
                            rooms=sorted(list(rooms)))
+
+
+def save_temp_data(data):
+    """Сохранение данных во временный файл"""
+    temp_id = str(uuid.uuid4())
+    temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
+
+    with open(temp_path, 'wb') as f:
+        pickle.dump(data, f)
+
+    return temp_id
+
+
+def load_temp_data(temp_id):
+    """Загрузка данных из временного файла"""
+    temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
+
+    if os.path.exists(temp_path):
+        with open(temp_path, 'rb') as f:
+            data = pickle.load(f)
+        return data
+    return None
+
+
+def remove_temp_data(temp_id):
+    """Удаление временного файла"""
+    temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not session.get('is_admin'):
+            flash('Доступ запрещен. Необходимы права администратора.', 'error')
+            return redirect(url_for('timetable.index'))
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 @bp.route('/group/<group_name>')
@@ -106,12 +172,14 @@ def group_timetable(group_name):
                            get_lessons=get_lessons_wrapper,
                            unique_values=unique_values)
 
+
 @bp.route('/api/save_lesson', methods=['POST'])
 def save_lesson():
     """API для сохранения изменений в расписании"""
     data = request.get_json()
     # Здесь будет логика сохранения
     return jsonify({"status": "success"})
+
 
 def get_unique_values(timetable_data):
     """Получение уникальных значений для выпадающих списков"""
@@ -341,6 +409,338 @@ def teacher_timetable(teacher_name):
                            get_lessons=get_teacher_lessons)
 
 
+UPLOAD_FOLDER = 'data/uploads'
+MERGED_FILE = 'data/timetable.json'
+
+
+@bp.route('/login', methods=['POST'])
+def login():
+    """Простая авторизация администратора"""
+    password = request.form.get('password')
+    if password == app.config['ADMIN_PASSWORD']:
+        session['is_admin'] = True
+        flash('Вы успешно вошли как администратор', 'success')
+    else:
+        flash('Неверный пароль', 'error')
+    return redirect(url_for('timetable.index'))
+
+
+@bp.route('/logout')
+def logout():
+    """Выход из админки"""
+    session.pop('is_admin', None)
+    flash('Вы вышли из системы', 'info')
+    return redirect(url_for('timetable.index'))
+
+
+def read_merged_file():
+    """Чтение данных расписания из файла"""
+    print("\n=== Чтение файла расписания ===")
+
+    if not os.path.exists(MERGED_FILE):
+        print(f"Файл не существует: {MERGED_FILE}")
+        return []
+
+    print(f"Чтение файла: {MERGED_FILE}")
+
+    try:
+        with open(MERGED_FILE, 'rb') as f:
+            content = f.read()
+            print(f"Размер файла: {len(content)} байт")
+
+            # Пробуем разные кодировки
+            for encoding in ['windows-1251', 'utf-8', 'utf-8-sig']:
+                try:
+                    decoded_content = content.decode(encoding)
+                    print(f"Успешная декодировка с {encoding}")
+                    data = json.loads(decoded_content)
+                    print(f"JSON успешно прочитан, тип данных: {type(data)}")
+                    return data
+                except UnicodeDecodeError:
+                    continue
+                except json.JSONDecodeError as e:
+                    print(f"Ошибка парсинга JSON с {encoding}: {str(e)}")
+                    continue
+
+            print("Не удалось прочитать файл ни с одной кодировкой")
+            return []
+
+    except Exception as e:
+        print(f"Ошибка чтения файла: {str(e)}")
+        return []
+
+    print("=== Завершение чтения файла ===\n")
+
+
+@bp.route('/upload', methods=['POST'])
+@admin_required
+def upload_files():
+    """Загрузка файлов расписания"""
+    print("\n=== Начало загрузки файлов ===")
+
+    if 'timetable_files' not in request.files:
+        print("Файлы не найдены в запросе")
+        flash('Нет выбранных файлов', 'error')
+        return redirect(url_for('timetable.index'))
+
+    files = request.files.getlist('timetable_files')
+    if not files:
+        print("Список файлов пуст")
+        flash('Нет выбранных файлов', 'error')
+        return redirect(url_for('timetable.index'))
+
+    print(f"Получено файлов: {len(files)}")
+    print(f"Имена файлов: {[f.filename for f in files]}")
+
+    new_data = []
+    existing_weeks = set()
+    conflicts = []
+
+    # Загружаем существующие данные
+    current_data = read_merged_file()
+    print(f"Текущие данные загружены: {current_data is not None}")
+
+    if current_data:
+        if isinstance(current_data, list):
+            for item in current_data:
+                if 'timetable' in item:
+                    for week in item['timetable']:
+                        existing_weeks.add(week['week_number'])
+            print(f"Найдено существующих недель: {len(existing_weeks)}")
+            print(f"Номера недель: {sorted(list(existing_weeks))}")
+        new_data.extend(current_data)
+
+    # Обрабатываем новые файлы
+    for file in files:
+        if not file.filename:
+            continue
+
+        print(f"\nОбработка файла: {file.filename}")
+        try:
+            # Читаем содержимое файла
+            file_content = file.read()
+            print(f"Размер файла: {len(file_content)} байт")
+
+            try:
+                # Пробуем разные кодировки
+                for encoding in ['windows-1251', 'utf-8', 'utf-8-sig']:
+                    try:
+                        content = file_content.decode(encoding)
+                        print(f"Успешная декодировка с {encoding}")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    raise UnicodeDecodeError("Не удалось определить кодировку файла")
+
+                # Обрабатываем escape-последовательности
+                content = content.replace('\\', '\\\\')
+
+                # Парсим JSON
+                file_data = json.loads(content)
+                print("JSON успешно прочитан")
+
+                if not isinstance(file_data, list):
+                    print(f"Неверный формат данных. Ожидался список, получен {type(file_data)}")
+                    continue
+
+                # Проверяем недели в новом файле
+                for item in file_data:
+                    if 'timetable' in item:
+                        for week in item['timetable']:
+                            week_num = week['week_number']
+                            if week_num in existing_weeks:
+                                print(f"Конфликт: неделя {week_num}")
+                                conflicts.append({
+                                    'week': week_num,
+                                    'file': file.filename,
+                                    'date_start': week['date_start'],
+                                    'date_end': week['date_end']
+                                })
+                            else:
+                                new_data.append(item)
+                                existing_weeks.add(week_num)
+                                print(f"Добавлена неделя {week_num}")
+
+            except json.JSONDecodeError as e:
+                print(f"Ошибка парсинга JSON: {str(e)}")
+                # Показываем контекст ошибки
+                if hasattr(e, 'pos'):
+                    start = max(0, e.pos - 50)
+                    end = min(len(content), e.pos + 50)
+                    print(f"Контекст ошибки: {content[start:end]}")
+                raise
+
+        except Exception as e:
+            print(f"Ошибка обработки файла: {str(e)}")
+            flash(f'Ошибка при обработке файла {file.filename}: {str(e)}', 'error')
+            return redirect(url_for('timetable.index'))
+
+    print(f"\nИтоги обработки:")
+    print(f"Конфликтов найдено: {len(conflicts)}")
+    print(f"Всего недель в новых данных: {len(new_data)}")
+
+    # Если есть конфликты
+    if conflicts:
+        print("Сохранение данных во временный файл")
+        temp_id = save_temp_data({
+            'pending_data': new_data,
+            'conflicts': conflicts
+        })
+        session['temp_id'] = temp_id
+        return redirect(url_for('timetable.resolve_conflicts'))
+
+    # Если конфликтов нет, сохраняем данные
+    try:
+        print("Сохранение объединенных данных")
+        save_merged_data(new_data)
+        flash('Файлы успешно загружены и объединены', 'success')
+    except Exception as e:
+        print(f"Ошибка сохранения: {str(e)}")
+        flash(f'Ошибка при сохранении данных: {str(e)}', 'error')
+
+    print("=== Завершение загрузки файлов ===\n")
+    return redirect(url_for('timetable.index'))
+
+
+@bp.route('/resolve_conflicts')
+@admin_required
+def resolve_conflicts():
+    """Страница разрешения конфликтов"""
+    temp_id = session.get('temp_id')
+    if not temp_id:
+        flash('Нет конфликтов для разрешения', 'info')
+        return redirect(url_for('timetable.index'))
+
+    temp_data = load_temp_data(temp_id)
+    if not temp_data or 'conflicts' not in temp_data:
+        flash('Данные о конфликтах не найдены', 'error')
+        return redirect(url_for('timetable.index'))
+
+    return render_template('timetable/resolve_conflicts.html', conflicts=temp_data['conflicts'])
+
+
+@bp.route('/apply_resolution', methods=['POST'])
+@admin_required
+def apply_resolution():
+    """Применение решений по конфликтам"""
+    try:
+        resolutions = request.json
+        temp_id = session.get('temp_id')
+
+        if not temp_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Данные для обработки не найдены'
+            }), 400
+
+        temp_data = load_temp_data(temp_id)
+        if not temp_data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Временные данные не найдены'
+            }), 400
+
+        pending_data = temp_data['pending_data']
+        current_data = read_merged_file() or []
+
+        # Обрабатываем каждую неделю согласно решению
+        for week_num, action in resolutions.items():
+            week_num = int(week_num)
+
+            if action == 'merge':
+                # Собираем все данные для этой недели
+                all_weeks = []
+
+                # Из текущих данных
+                for item in current_data:
+                    if 'timetable' in item:
+                        for week in item['timetable']:
+                            if week['week_number'] == week_num:
+                                all_weeks.append(week)
+
+                # Из новых данных
+                for item in pending_data:
+                    if 'timetable' in item:
+                        for week in item['timetable']:
+                            if week['week_number'] == week_num:
+                                all_weeks.append(week)
+
+                # Объединяем недели
+                merged_weeks = merge_weeks(all_weeks)
+
+                # Удаляем старые данные об этой неделе
+                current_data = [
+                    item for item in current_data
+                    if 'timetable' not in item or
+                       not any(w['week_number'] == week_num for w in item['timetable'])
+                ]
+
+                # Добавляем объединенные данные
+                if merged_weeks:
+                    current_data.append({'timetable': merged_weeks})
+
+            elif action == 'skip':
+                # Пропускаем новые данные
+                pending_data = [
+                    item for item in pending_data
+                    if 'timetable' not in item or
+                       not any(w['week_number'] == week_num for w in item['timetable'])
+                ]
+            elif action == 'replace':
+                # Удаляем старые данные
+                current_data = [
+                    item for item in current_data
+                    if 'timetable' not in item or
+                       not any(w['week_number'] == week_num for w in item['timetable'])
+                ]
+                # Добавляем новые данные
+                current_data.extend([
+                    item for item in pending_data
+                    if 'timetable' in item and
+                       any(w['week_number'] == week_num for w in item['timetable'])
+                ])
+
+        # Объединяем оставшиеся данные
+        merged_data = current_data + [
+            item for item in pending_data
+            if item not in current_data
+        ]
+
+        # Сохраняем результат
+        save_merged_data(merged_data)
+
+        # Очищаем временные данные
+        remove_temp_data(temp_id)
+        session.pop('temp_id', None)
+
+        flash('Конфликты успешно разрешены', 'success')
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@bp.errorhandler(Exception)
+def handle_error(e):
+    temp_id = session.get('temp_id')
+    if temp_id:
+        remove_temp_data(temp_id)
+        session.pop('temp_id', None)
+    return str(e), 500
+
+def save_merged_data(data):
+    """Сохранение объединенных данных"""
+    # Создаем папку, если её нет
+    os.makedirs(os.path.dirname(MERGED_FILE), exist_ok=True)
+
+    # Сохраняем данные в windows-1251
+    with open(MERGED_FILE, 'w', encoding='windows-1251') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 @bp.route('/room/<room_name>')
 def room_timetable(room_name):
     """Просмотр расписания аудитории"""
@@ -416,8 +816,3 @@ def room_timetable(room_name):
                            day_names=day_names,
                            timetable=timetable_data,
                            get_lessons=get_room_lessons)
-
-
-
-
-

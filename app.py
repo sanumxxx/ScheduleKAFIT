@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin
 from routes import timetable, auth
 import os
 
+from routes.auth import init_login_manager
+
 
 # Заглушка для пользователя
 class User(UserMixin):
@@ -19,6 +21,8 @@ def create_app():
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+
+    init_login_manager(app)
 
     # Добавляем user_loader
     @login_manager.user_loader
