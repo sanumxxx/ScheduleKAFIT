@@ -1,8 +1,9 @@
 from flask import Flask, redirect, url_for
 from config.config import Config
 from flask_login import LoginManager, UserMixin
-from routes import timetable, auth
+from routes import timetable, auth, api
 import os
+
 
 from routes.auth import init_login_manager
 
@@ -32,6 +33,8 @@ def create_app():
     # Регистрация blueprints
     app.register_blueprint(timetable.bp)
     app.register_blueprint(auth.bp)
+
+    app.register_blueprint(api.bp)
 
     # Обработчики ошибок
     @app.errorhandler(404)
