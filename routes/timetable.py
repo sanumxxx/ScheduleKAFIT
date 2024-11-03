@@ -7,7 +7,7 @@ import tempfile
 import pickle
 import uuid
 import json
-
+from datetime import datetime, timedelta
 from services.json_handler import TimetableHandler
 from flask_login import login_required, current_user
 import os
@@ -199,11 +199,10 @@ def group_timetable(group_name):
     timetable_data = timetable_handler.read_timetable()
     selected_week = request.args.get('week', None)
 
-
     # Получаем список всех недель
     weeks = []
     if isinstance(timetable_data, list):
-        for timetable_item in timetable_data:  # Перебираем все элементы в корневом списке
+        for timetable_item in timetable_data:
             if 'timetable' in timetable_item:
                 for week_data in timetable_item['timetable']:
                     weeks.append({
@@ -214,8 +213,6 @@ def group_timetable(group_name):
 
     # Сортируем недели по номеру
     weeks.sort(key=lambda x: x['week_number'])
-
-    print("Доступные недели:", weeks)  # Отладочный вывод
 
     # Если неделя не выбрана, берем первую
     if not selected_week and weeks:
@@ -235,6 +232,46 @@ def group_timetable(group_name):
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
+    # Получаем текущую дату и время
+    current_datetime = datetime.now()
+    current_time = current_datetime.strftime('%H:%M')
+    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+
+    # Определяем текущую пару
+    current_pair = None
+    for i, time_slot in enumerate(time_slots, 1):
+        start_time = datetime.strptime(time_slot['start'], '%H:%M').time()
+        end_time = datetime.strptime(time_slot['end'], '%H:%M').time()
+        if start_time <= current_datetime.time() <= end_time:
+            current_pair = i
+            break
+
+    # Получаем даты для дней недели
+    dates = [''] * 6  # По умолчанию пустые строки для дат
+    if selected_week and weeks:
+        week_data = next((week for week in weeks if str(week['week_number']) == str(selected_week)), None)
+        if week_data and week_data.get('date_start'):
+            try:
+                # Пробуем разные форматы даты
+                date_formats = ['%d.%m.%Y', '%d-%m-%Y', '%Y-%m-%d']
+                start_date = None
+
+                for date_format in date_formats:
+                    try:
+                        start_date = datetime.strptime(week_data['date_start'], date_format)
+                        break
+                    except ValueError:
+                        continue
+
+                if start_date:
+                    dates = []
+                    for i in range(6):  # 6 дней недели
+                        date = start_date + timedelta(days=i)
+                        dates.append(date.strftime('%d.%m'))
+            except Exception as e:
+                print(f"Ошибка при парсинге даты: {week_data['date_start']}, ошибка: {str(e)}")
+                dates = [''] * 6
+
     # Получаем уникальные значения для выпадающих списков
     unique_values = get_unique_values(timetable_data)
 
@@ -242,17 +279,104 @@ def group_timetable(group_name):
     def get_lessons_wrapper(timetable, day, time):
         return get_lessons(timetable, day, time, group_name, selected_week)
 
-    print(f"Выбранная неделя: {selected_week}")  # Отладочный вывод
-
     return render_template('timetable/group.html',
                            group_name=group_name,
                            weeks=weeks,
                            current_week=selected_week,
                            time_slots=time_slots,
                            day_names=day_names,
+                           dates=dates,
+                           current_weekday=current_weekday,
+                           current_pair=current_pair,
+                           current_time=current_time,
                            timetable=timetable_data,
                            get_lessons=get_lessons_wrapper,
                            unique_values=unique_values)
+
+@bp.route('/free_rooms', methods=['GET', 'POST'])
+def free_rooms():
+    """Поиск свободных аудиторий"""
+    timetable_data = timetable_handler.read_timetable()
+
+    # Получаем список всех недель
+    weeks = []
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    weeks.append({
+                        'week_number': week.get('week_number'),
+                        'date_start': week.get('date_start'),
+                        'date_end': week.get('date_end')
+                    })
+    weeks.sort(key=lambda x: x['week_number'])
+
+    # Получаем все аудитории в виде множества
+    all_rooms = set()
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    for group in week.get('groups', []):
+                        for day in group.get('days', []):
+                            for lesson in day.get('lessons', []):
+                                for auditory in lesson.get('auditories', []):
+                                    if auditory.get('auditory_name'):
+                                        all_rooms.add(auditory['auditory_name'])
+
+    # Если это POST-запрос, ищем свободные аудитории
+    free_rooms = []
+    selected_week = None
+    selected_day = None
+    selected_time = None
+
+    if request.method == 'POST':
+        selected_week = request.form.get('week')
+        selected_day = request.form.get('day')
+        selected_time = request.form.get('time')
+
+        if all([selected_week, selected_day, selected_time]):
+            # Находим занятые аудитории
+            busy_rooms = set()
+            for data in timetable_data:
+                if 'timetable' in data:
+                    for week in data['timetable']:
+                        if str(week.get('week_number')) == selected_week:
+                            for group in week.get('groups', []):
+                                for day in group.get('days', []):
+                                    if str(day.get('weekday')) == selected_day:
+                                        for lesson in day.get('lessons', []):
+                                            if str(lesson.get('time')) == selected_time:
+                                                for auditory in lesson.get('auditories', []):
+                                                    if auditory.get('auditory_name'):
+                                                        busy_rooms.add(auditory['auditory_name'])
+
+            # Определяем свободные аудитории (разница множеств)
+            free_rooms = sorted(list(all_rooms - busy_rooms))
+
+    # Расписание звонков
+    time_slots = [
+        {'start': '08:00', 'end': '09:20'},
+        {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'},
+        {'start': '12:40', 'end': '14:00'},
+        {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'},
+        {'start': '17:10', 'end': '18:30'},
+        {'start': '18:40', 'end': '20:00'}
+    ]
+
+    day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+
+    return render_template('timetable/free_rooms.html',
+                           weeks=weeks,
+                           time_slots=time_slots,
+                           day_names=day_names,
+                           free_rooms=free_rooms,
+                           selected_week=selected_week,
+                           selected_day=selected_day,
+                           selected_time=selected_time,
+                           all_rooms=sorted(list(all_rooms)))  # Передаем также список всех аудиторий
 
 
 @bp.route('/api/save_lesson', methods=['POST'])
@@ -282,9 +406,9 @@ def get_unique_values(timetable_data):
                             auditories.add(auditory.get('auditory_name'))
 
     return {
-        'subjects': sorted(list(subjects)),
-        'teachers': sorted(list(teachers)),
-        'auditories': sorted(list(auditories)),
+        'subjects': sorted(list(filter(None, subjects))),
+        'teachers': sorted(list(filter(None, teachers))),
+        'auditories': sorted(list(filter(None, auditories))),
         'lesson_types': ['л.', 'пр.', 'лаб.']
     }
 
@@ -318,13 +442,13 @@ def get_group_timetable(group_name, timetable_data, selected_week=None):
     return None, None
 
 
-def get_lessons(timetable_data, day, time_slot, group_name, selected_week=None):
-    """Получение занятий для конкретного дня, времени и недели"""
+def get_lessons(timetable, day, time, group_name, selected_week=None):
+    """Получение занятий для конкретного дня и времени"""
     try:
-        if isinstance(timetable_data, list):
-            for timetable_item in timetable_data:
-                if 'timetable' in timetable_item:
-                    for week in timetable_item['timetable']:
+        if isinstance(timetable, list):
+            for data in timetable:
+                if 'timetable' in data:
+                    for week in data['timetable']:
                         # Проверяем номер недели, если он указан
                         if selected_week and str(week.get('week_number')) != str(selected_week):
                             continue
@@ -335,11 +459,9 @@ def get_lessons(timetable_data, day, time_slot, group_name, selected_week=None):
                                     if day_data.get('weekday') == day:
                                         lessons = [
                                             lesson for lesson in day_data.get('lessons', [])
-                                            if lesson.get('time') == time_slot
+                                            if lesson.get('time') == time
                                         ]
                                         if lessons:
-                                            print(
-                                                f"Найдены занятия для группы {group_name}, день {day}, пара {time_slot}, неделя {week.get('week_number')}")
                                             return lessons
         return None
     except Exception as e:

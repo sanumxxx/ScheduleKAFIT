@@ -34,70 +34,89 @@
 
 
         <!-- Таблица расписания -->
-        <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Время
+        <!-- Таблица расписания -->
+<div class="overflow-x-auto bg-white rounded-lg shadow">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Время
+                </th>
+                {% for day_name in day_names %}
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
+                             {% if loop.index == current_weekday %}bg-indigo-50{% endif %}">
+                        <div>{{ day_name }}</div>
+                        <div class="text-xs font-normal text-gray-400 mt-1">
+                            {{ dates[loop.index0] }}
+                        </div>
                     </th>
-                    {% for day_name in day_names %}
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {{ day_name }}
-                        </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for time_idx in range(8) %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900
+                              {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}">
+                        {{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}
+                        {% if time_idx + 1 == current_pair %}
+                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Текущая
+                            </span>
+                        {% endif %}
+                    </td>
+                    {% for day in range(1, 7) %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500
+                                  {% if day == current_weekday %}bg-indigo-50{% endif %}
+                                  {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}
+                                  {% if day == current_weekday and time_idx + 1 == current_pair %}bg-green-50{% endif %}"
+                            data-day="{{ day }}"
+                            data-time="{{ time_idx + 1 }}"
+                            {% if current_user.is_authenticated and session.get('is_admin') %}
+                            onclick="handleCellClick(event)"
+                            class="cursor-pointer hover:bg-gray-50"
+                            {% endif %}
+                        >
+                            {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
+                            {% if lessons %}
+                                {% for lesson in lessons %}
+                                    <div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
+                                         data-lesson='{{ lessons|tojson|safe }}'
+                                         data-subject="{{ lesson.subject }}"
+                                         data-type="{{ lesson.type }}"
+                                         data-subgroup="{{ lesson.subgroup }}"
+                                         data-teacher="{{ lesson.teachers[0].teacher_name }}"
+                                         data-auditory="{{ lesson.auditories[0].auditory_name }}">
+                                        <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
+                                        <div class="flex items-center gap-1 text-xs">
+                                            <span class="px-2 py-0.5 rounded-full
+                                                {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
+                                                {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
+                                                {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                                {{ lesson.type }}
+                                            </span>
+                                            {% if lesson.subgroup > 0 %}
+                                                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                                    Подгруппа {{ lesson.subgroup }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            {{ lesson.teachers[0].teacher_name }}
+                                        </div>
+                                        <div class="text-xs font-medium text-gray-700">
+                                            ауд. {{ lesson.auditories[0].auditory_name }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </td>
                     {% endfor %}
                 </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                {% for time_idx in range(8) %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}
-                        </td>
-                        {% for day in range(1, 7) %}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                                data-day="{{ day }}"
-                                data-time="{{ time_idx + 1 }}"
-                            >
-                                {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
-                                {% if lessons %}
-                                    {% for lesson in lessons %}
-                                        <div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
-                                             data-lesson='{{ lessons|tojson|safe }}'
-                                             data-subject="{{ lesson.subject }}"
-                                             data-type="{{ lesson.type }}"
-                                             data-subgroup="{{ lesson.subgroup }}"
-                                             data-teacher="{{ lesson.teachers[0].teacher_name }}"
-                                             data-auditory="{{ lesson.auditories[0].auditory_name }}"
-                                        >
-                                            <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
-                                            <div class="flex items-center gap-1 text-xs">
-                    <span class="px-2 py-0.5 rounded-full {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800{% elif lesson.type == 'пр.' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
-                        {{ lesson.type }}
-                    </span>
-                                                {% if lesson.subgroup > 0 %}
-                                                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                            Подгруппа {{ lesson.subgroup }}
-                        </span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-1">
-                                                {{ lesson.teachers[0].teacher_name }}
-                                            </div>
-                                            <div class="text-xs font-medium text-gray-700">
-                                                ауд. {{ lesson.auditories[0].auditory_name }}
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
         <!-- Модальное окно для редактирования -->
         <div id="editModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">

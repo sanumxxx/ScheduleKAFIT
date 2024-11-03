@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Поиск свободных аудиторий</h1>
+
+        <form method="POST" class="space-y-6 bg-white shadow rounded-lg p-6">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                <!-- Выбор недели -->
+                <div>
+                    <label for="week" class="block text-sm font-medium text-gray-700">Неделя</label>
+                    <select id="week" name="week" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Выберите неделю</option>
+                        {% for week in weeks %}
+                            <option value="{{ week.week_number }}"
+                                    {% if selected_week and selected_week|string == week.week_number|string %}selected{% endif %}>
+                                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Выбор дня -->
+                <div>
+                    <label for="day" class="block text-sm font-medium text-gray-700">День недели</label>
+                    <select id="day" name="day" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Выберите день</option>
+                        {% for name in day_names %}
+                            <option value="{{ loop.index }}"
+                                    {% if selected_day and selected_day|string == loop.index|string %}selected{% endif %}>
+                                {{ name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Выбор пары -->
+                <div>
+                    <label for="time" class="block text-sm font-medium text-gray-700">Пара</label>
+                    <select id="time" name="time" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Выберите пару</option>
+                        {% for slot in time_slots %}
+                            <option value="{{ loop.index }}"
+                                    {% if selected_time and selected_time|string == loop.index|string %}selected{% endif %}>
+                                {{ slot.start }} - {{ slot.end }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Найти
+                </button>
+            </div>
+        </form>
+
+        {% if free_rooms %}
+            <div class="mt-8">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Свободные аудитории</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {% for room in free_rooms %}
+                        <div class="bg-white shadow rounded-lg p-4 text-center">
+                            <span class="text-gray-900">{{ room }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% elif request.method == 'POST' %}
+            <div class="mt-8">
+                <p class="text-gray-500 text-center">Свободных аудиторий не найдено</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
