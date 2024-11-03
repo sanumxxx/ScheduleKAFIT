@@ -5,6 +5,7 @@ from routes import timetable, auth, api
 import os
 
 
+
 from routes.auth import init_login_manager
 
 

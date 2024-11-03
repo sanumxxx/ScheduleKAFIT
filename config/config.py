@@ -16,6 +16,7 @@ class Config:
     TIMETABLE_FILE = os.path.join(DATA_DIR, 'timetable.json')
     BACKUP_DIR = os.path.join(DATA_DIR, 'backup')
     ADMIN_PASSWORD = 'moonstonestone54'
+    TELEGRAM_BOT_TOKEN = '7938737812:AAFiJZLaiImXRICS53p4TKcvNepP6vpnwSs'
 
     # Создаем директории если их нет
     os.makedirs(DATA_DIR, exist_ok=True)
