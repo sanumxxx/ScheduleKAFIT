@@ -3,18 +3,44 @@ from flask import request, current_app
 from functools import wraps
 from datetime import datetime
 import requests
+import socket
+import json
+import urllib.request
 
 
-def get_client_ip():
-    """Получение IP-адреса клиента"""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0]
-    return request.remote_addr
+def get_real_ip():
+    """Получение реального IP пользователя"""
+    try:
+        # Пробуем получить IP через сервис ipinfo.io
+        with urllib.request.urlopen('https://ipinfo.io/json') as response:
+            data = json.loads(response.read())
+            return data['ip']
+    except:
+        try:
+            # Резервный вариант через api.ipify.org
+            with urllib.request.urlopen('https://api.ipify.org?format=json') as response:
+                data = json.loads(response.read())
+                return data['ip']
+        except:
+            # Если не удалось получить IP через API, используем локальный IP
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+            if local_ip == '127.0.0.1':
+                # Пытаемся получить реальный локальный IP
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                try:
+                    s.connect(('8.8.8.8', 80))
+                    local_ip = s.getsockname()[0]
+                except:
+                    pass
+                finally:
+                    s.close()
+            return local_ip
 
 
 def send_notification(message):
     """
-    Простая функция для отправки уведомлений в Telegram
+    Отправка уведомлений в Telegram
     """
     try:
         bot_token = "7938737812:AAFiJZLaiImXRICS53p4TKcvNepP6vpnwSs"
@@ -36,6 +62,16 @@ def send_notification(message):
         return False
 
 
+def get_user_location():
+    """Получение местоположения пользователя по IP"""
+    try:
+        with urllib.request.urlopen('https://ipinfo.io/json') as response:
+            data = json.loads(response.read())
+            return f"{data.get('city', 'Unknown')}, {data.get('country', 'Unknown')}"
+    except:
+        return "Unknown"
+
+
 def notify_view(f):
     """Декоратор для отправки уведомлений"""
 
@@ -44,7 +80,8 @@ def notify_view(f):
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             path = request.path
-            ip_address = get_client_ip()
+            real_ip = get_real_ip()
+            location = get_user_location()
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
@@ -70,7 +107,8 @@ def notify_view(f):
             message = (
                 f"👀 <b>Просмотр {view_type}</b>\n\n"
                 f"🕒 Время: {timestamp}\n"
-                f"🌐 IP: {ip_address}\n"
+                f"🌐 IP: {real_ip}\n"
+                f"📍 Местоположение: {location}\n"
                 f"📅 Неделя: {week}\n"
             )
 
