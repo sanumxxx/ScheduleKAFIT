@@ -3,45 +3,19 @@ from flask import request, current_app
 from functools import wraps
 from datetime import datetime
 import requests
-import socket
-import netifaces
 
 
-def get_real_ip():
-    """Получение реального IP-адреса"""
-    try:
-        # Получаем список всех сетевых интерфейсов
-        interfaces = netifaces.interfaces()
+def get_client_ip():
+    """Получение реального IP клиента из заголовков nginx"""
+    # Проверяем заголовки в порядке приоритета
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        # Берем первый IP из списка (реальный IP клиента)
+        return forwarded_for.split(',')[0].strip()
 
-        for interface in interfaces:
-            # Пропускаем loopback
-            if interface.startswith('lo'):
-                continue
-
-            addrs = netifaces.ifaddresses(interface)
-            # Ищем IPv4 адреса
-            if netifaces.AF_INET in addrs:
-                for addr in addrs[netifaces.AF_INET]:
-                    ip = addr['addr']
-                    # Пропускаем локальные адреса
-                    if not ip.startswith('127.'):
-                        if request.environ.get('REMOTE_PORT'):
-                            return f"{ip}:{request.environ.get('REMOTE_PORT')}"
-                        return ip
-    except:
-        pass
-
-    # Запасной вариант - получаем IP через подключение
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))
-        ip = s.getsockname()[0]
-        s.close()
-        if request.environ.get('REMOTE_PORT'):
-            return f"{ip}:{request.environ.get('REMOTE_PORT')}"
-        return ip
-    except:
-        pass
+    real_ip = request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip
 
     return request.remote_addr
 
@@ -107,7 +81,7 @@ def notify_view(f):
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             path = request.path
-            client_ip = get_real_ip()
+            client_ip = get_client_ip()
             browser, system = get_browser_info()
 
             # Определяем тип просмотра и детали
@@ -130,7 +104,11 @@ def notify_view(f):
                 view_type = "списка свободных аудиторий"
 
             week = request.args.get('week', 'текущая')
-            endpoint = request.endpoint if request.endpoint else 'Unknown'
+
+            # Добавляем информацию о всех заголовках для отладки
+            headers_info = "\n\nЗаголовки запроса:\n"
+            for header, value in request.headers.items():
+                headers_info += f"{header}: {value}\n"
 
             message = (
                 f"👀 <b>Просмотр {view_type}</b>\n\n"
@@ -138,12 +116,14 @@ def notify_view(f):
                 f"🌐 IP клиента: {client_ip}\n"
                 f"💻 Устройство: {system}\n"
                 f"🌍 Браузер: {browser}\n"
-                f"🔗 Страница: {endpoint}\n"
                 f"📅 Неделя: {week}\n"
             )
 
             if details:
                 message += f"{details}\n"
+
+            # Временно добавляем отладочную информацию
+            print("Debug headers:", headers_info)
 
             send_notification(message)
 
