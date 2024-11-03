@@ -8,14 +8,20 @@
             <p class="text-lg text-gray-600">{{ teacher_name }}</p>
         </div>
         <select
-            class="form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            onchange="changeWeek(this.value)">
-            {% for week in weeks %}
-            <option value="{{ week.week_number }}" {% if week.week_number == current_week %}selected{% endif %}>
+    class="form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+    onchange="changeWeek(this.value)">
+    {% for week in weeks %}
+        {% if week.week_number|string == request.args.get('week', current_week|string) %}
+            <option value="{{ week.week_number }}" selected>
                 Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
             </option>
-            {% endfor %}
-        </select>
+        {% else %}
+            <option value="{{ week.week_number }}">
+                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+            </option>
+        {% endif %}
+    {% endfor %}
+</select>
     </div>
 
     <!-- Таблица расписания -->
@@ -79,7 +85,30 @@
 
 <script>
 function changeWeek(weekNumber) {
-    window.location.href = `{{ url_for('timetable.teacher_timetable', teacher_name=teacher_name) }}?week=${weekNumber}`;
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('week', weekNumber);
+    window.location.href = currentUrl.toString();
+}
+
+function getUrlParameter(name) {
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get(name);
+}
+
+function setSelectedWeek() {
+    const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
+    if (!weekSelect) return;
+
+    const urlWeek = getUrlParameter('week');
+    if (urlWeek) {
+        weekSelect.value = urlWeek;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+    setSelectedWeek();
+
+    // ... остальные обработчики
+});
 }
 </script>
 {% endblock %}

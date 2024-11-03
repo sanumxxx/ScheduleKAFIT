@@ -152,6 +152,7 @@ def merge_weeks(weeks):
     print("=== Завершено объединение недель ===\n")
     return merged_result
 
+
 def save_temp_data(data):
     """Сохранение данных во временный файл"""
     temp_id = str(uuid.uuid4())
@@ -197,6 +198,7 @@ def group_timetable(group_name):
     """Страница расписания группы"""
     timetable_data = timetable_handler.read_timetable()
     selected_week = request.args.get('week', None)
+
 
     # Получаем список всех недель
     weeks = []
@@ -542,7 +544,6 @@ def read_merged_file():
     return []
 
 
-
 @bp.route('/upload', methods=['POST'])
 @admin_required
 def upload_files():
@@ -686,7 +687,6 @@ def upload_files():
     return redirect(url_for('timetable.index'))
 
 
-
 @bp.route('/resolve_conflicts')
 @admin_required
 def resolve_conflicts():
@@ -715,7 +715,7 @@ def resolve_conflicts():
         conflicts_by_week[week_num]['files'].append(conflict['file'])
 
     return render_template('timetable/resolve_conflicts.html',
-                         conflicts=conflicts_by_week.values())
+                           conflicts=conflicts_by_week.values())
 
 
 @bp.route('/apply_resolution', methods=['POST'])
