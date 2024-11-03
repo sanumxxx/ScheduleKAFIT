@@ -3,47 +3,51 @@ from flask import request, current_app
 from functools import wraps
 from datetime import datetime
 import requests
-import json
 
 
-def get_client_ip_info():
-    """Получение информации о клиенте"""
-    # Получаем IP клиента
-    if request.headers.get('X-Forwarded-For'):
-        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    elif request.headers.get('X-Real-IP'):
-        ip = request.headers.get('X-Real-IP')
-    else:
-        ip = request.remote_addr
+def get_client_ip():
+    """Получение IP клиента"""
+    if request.environ.get('REMOTE_PORT'):
+        # Получаем IP и порт клиента
+        return f"{request.remote_addr}:{request.environ.get('REMOTE_PORT')}"
+    return request.remote_addr
 
-    # Получаем информацию о местоположении
-    try:
-        response = requests.get(f'https://ipinfo.io/{ip}/json')
-        if response.status_code == 200:
-            data = response.json()
-            return {
-                'ip': ip,
-                'city': data.get('city', 'Unknown'),
-                'country': data.get('country', 'Unknown'),
-                'region': data.get('region', 'Unknown'),
-                'org': data.get('org', 'Unknown')
-            }
-    except:
-        pass
 
-    return {
-        'ip': ip,
-        'city': 'Unknown',
-        'country': 'Unknown',
-        'region': 'Unknown',
-        'org': 'Unknown'
-    }
+def get_browser_info():
+    """Получение информации о браузере"""
+    user_agent = request.headers.get('User-Agent', '').lower()
+    browser = "Неизвестно"
+    system = "Неизвестно"
+
+    # Определение браузера
+    if 'edge' in user_agent:
+        browser = "Edge"
+    elif 'chrome' in user_agent:
+        browser = "Chrome"
+    elif 'firefox' in user_agent:
+        browser = "Firefox"
+    elif 'safari' in user_agent:
+        browser = "Safari"
+    elif 'opera' in user_agent:
+        browser = "Opera"
+
+    # Определение системы
+    if 'windows' in user_agent:
+        system = "Windows"
+    elif 'android' in user_agent:
+        system = "Android"
+    elif 'iphone' in user_agent or 'ipad' in user_agent:
+        system = "iOS"
+    elif 'linux' in user_agent:
+        system = "Linux"
+    elif 'macintosh' in user_agent:
+        system = "MacOS"
+
+    return browser, system
 
 
 def send_notification(message):
-    """
-    Отправка уведомлений в Telegram
-    """
+    """Отправка уведомлений в Telegram"""
     try:
         bot_token = "7938737812:AAFiJZLaiImXRICS53p4TKcvNepP6vpnwSs"
         api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -72,10 +76,8 @@ def notify_view(f):
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             path = request.path
-            client_info = get_client_ip_info()
-
-            # Получаем информацию о браузере
-            user_agent = request.headers.get('User-Agent', 'Unknown')
+            client_ip = get_client_ip()
+            browser, system = get_browser_info()
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
@@ -101,16 +103,19 @@ def notify_view(f):
             message = (
                 f"👀 <b>Просмотр {view_type}</b>\n\n"
                 f"🕒 Время: {timestamp}\n"
-                f"🌐 IP клиента: {client_info['ip']}\n"
-                f"📍 Город: {client_info['city']}\n"
-                f"🏳️ Страна: {client_info['country']}\n"
-                f"🏢 Провайдер: {client_info['org']}\n"
-                f"🌍 Браузер: {user_agent}\n"
+                f"🌐 IP: {client_ip}\n"
+                f"💻 Устройство: {system}\n"
+                f"🌍 Браузер: {browser}\n"
                 f"📅 Неделя: {week}\n"
             )
 
             if details:
                 message += f"{details}\n"
+
+            print(f"Request info:")
+            print(f"Remote addr: {request.remote_addr}")
+            print(f"Headers: {dict(request.headers)}")
+            print(f"Environment: {request.environ}")
 
             send_notification(message)
 
