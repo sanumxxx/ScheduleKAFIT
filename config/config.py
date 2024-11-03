@@ -15,7 +15,7 @@ class Config:
     DATA_DIR = os.path.join(basedir, '../data')
     TIMETABLE_FILE = os.path.join(DATA_DIR, 'timetable.json')
     BACKUP_DIR = os.path.join(DATA_DIR, 'backup')
-    ADMIN_PASSWORD = 'sanumxxx'
+    ADMIN_PASSWORD = 'moonstonestone54'
 
     # Создаем директории если их нет
     os.makedirs(DATA_DIR, exist_ok=True)

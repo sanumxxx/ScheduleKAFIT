@@ -16,27 +16,18 @@
                         </option>
                     {% endfor %}
                 </select>
+                {% if current_user.is_authenticated and session.get('is_admin') %}
                 <button
                         onclick="toggleEditMode()"
                         id="editButton"
                         class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
                     Редактировать
                 </button>
+            {% endif %}
             </div>
         </div>
 
-        <!-- Debug info -->
-        <div class="p-4 bg-gray-100 mb-4">
-            <p>Group: {{ group_name }}</p>
-            <p>Current week: {{ current_week }}</p>
-            <p>Timetable data type: {{ timetable.__class__.__name__ }}</p>
-            {% if timetable %}
-                <p>Timetable length: {{ timetable|length }}</p>
-                {% if timetable[0] %}
-                    <p>First element has timetable: {{ 'timetable' in timetable[0] }}</p>
-                {% endif %}
-            {% endif %}
-        </div>
+
 
         <!-- Таблица расписания -->
         <div class="overflow-x-auto bg-white rounded-lg shadow">
@@ -304,6 +295,13 @@
     </div>
 </div>
     </div>
+
+    <!-- Уведомления -->
+<div id="notification" class="fixed top-4 right-4 z-50 max-w-sm hidden transform transition-transform duration-300 ease-in-out">
+    <div class="rounded-lg p-4 flex items-center space-x-3">
+        <!-- Содержимое уведомления будет добавляться динамически -->
+    </div>
+</div>
 
     <script>
         let editMode = false;

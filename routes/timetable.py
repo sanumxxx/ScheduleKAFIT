@@ -6,6 +6,7 @@ from config.config import Config
 import tempfile
 import pickle
 import uuid
+import json
 
 from services.json_handler import TimetableHandler
 from flask_login import login_required, current_user
@@ -73,6 +74,84 @@ def index():
                            rooms=sorted(list(rooms)))
 
 
+def merge_weeks(weeks):
+    """Объединяет данные о неделях"""
+    print("\n=== Начало объединения недель ===")
+
+    merged_result = []
+    weeks_by_number = {}
+
+    # Группируем недели по номеру
+    for week in weeks:
+        week_num = week['week_number']
+        if week_num not in weeks_by_number:
+            weeks_by_number[week_num] = []
+        weeks_by_number[week_num].append(week)
+        print(f"Добавлена неделя {week_num} в группировку")
+
+    # Объединяем данные для каждого номера недели
+    for week_num, week_list in weeks_by_number.items():
+        print(f"\nОбработка недели {week_num}")
+
+        merged_week = {
+            'week_number': week_num,
+            'date_start': week_list[0]['date_start'],
+            'date_end': week_list[0]['date_end'],
+            'groups': []
+        }
+
+        # Словарь для хранения групп
+        groups_dict = {}
+
+        # Собираем все группы из всех файлов
+        for week in week_list:
+            for group in week.get('groups', []):
+                group_name = group['group_name']
+                print(f"Обработка группы {group_name}")
+
+                if group_name not in groups_dict:
+                    groups_dict[group_name] = {
+                        'group_name': group_name,
+                        'days': []
+                    }
+                    # Инициализируем дни недели
+                    for i in range(1, 7):
+                        groups_dict[group_name]['days'].append({
+                            'weekday': i,
+                            'lessons': []
+                        })
+                    print(f"Создана новая запись для группы {group_name}")
+
+                # Обновляем уроки для каждого дня
+                for day in group.get('days', []):
+                    weekday = day.get('weekday')
+                    if weekday:
+                        day_index = weekday - 1
+                        if day_index < len(groups_dict[group_name]['days']):
+                            # Добавляем новые уроки
+                            existing_lessons = groups_dict[group_name]['days'][day_index]['lessons']
+                            new_lessons = day.get('lessons', [])
+
+                            # Проверяем дубликаты уроков
+                            for new_lesson in new_lessons:
+                                is_duplicate = False
+                                for existing_lesson in existing_lessons:
+                                    if (existing_lesson.get('time') == new_lesson.get('time') and
+                                            existing_lesson.get('subject') == new_lesson.get('subject')):
+                                        is_duplicate = True
+                                        break
+                                if not is_duplicate:
+                                    existing_lessons.append(new_lesson)
+                                    print(f"Добавлен новый урок для группы {group_name}, день {weekday}")
+
+        # Преобразуем словарь групп обратно в список
+        merged_week['groups'] = list(groups_dict.values())
+        merged_result.append(merged_week)
+        print(f"Неделя {week_num} объединена")
+
+    print("=== Завершено объединение недель ===\n")
+    return merged_result
+
 def save_temp_data(data):
     """Сохранение данных во временный файл"""
     temp_id = str(uuid.uuid4())
@@ -100,6 +179,7 @@ def remove_temp_data(temp_id):
     temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
     if os.path.exists(temp_path):
         os.remove(temp_path)
+
 
 def admin_required(f):
     @wraps(f)
@@ -266,7 +346,8 @@ def get_lessons(timetable_data, day, time_slot, group_name, selected_week=None):
 
 
 @bp.route('/edit/<group_name>')
-@login_required
+@login_required  # Добавляем декоратор
+@admin_required  # Добавляем наш кастомный декоратор
 def edit_timetable(group_name):
     """Страница редактирования расписания группы"""
     timetable = timetable_handler.get_group_timetable(group_name)
@@ -276,6 +357,8 @@ def edit_timetable(group_name):
 
 
 @bp.route('/api/update', methods=['POST'])
+@login_required
+@admin_required
 def update_timetable():
     data = request.get_json()
 
@@ -434,42 +517,30 @@ def logout():
 
 
 def read_merged_file():
-    """Чтение данных расписания из файла"""
-    print("\n=== Чтение файла расписания ===")
-
-    if not os.path.exists(MERGED_FILE):
-        print(f"Файл не существует: {MERGED_FILE}")
-        return []
-
-    print(f"Чтение файла: {MERGED_FILE}")
-
+    """Чтение данных из файла"""
     try:
-        with open(MERGED_FILE, 'rb') as f:
-            content = f.read()
-            print(f"Размер файла: {len(content)} байт")
+        if os.path.exists(MERGED_FILE):
+            encodings = ['windows-1251', 'utf-8', 'utf-8-sig']
 
-            # Пробуем разные кодировки
-            for encoding in ['windows-1251', 'utf-8', 'utf-8-sig']:
+            for encoding in encodings:
                 try:
-                    decoded_content = content.decode(encoding)
-                    print(f"Успешная декодировка с {encoding}")
-                    data = json.loads(decoded_content)
-                    print(f"JSON успешно прочитан, тип данных: {type(data)}")
-                    return data
+                    with open(MERGED_FILE, 'r', encoding=encoding) as f:
+                        data = json.load(f)
+                        if isinstance(data, list):
+                            return data
+                        return [data]
                 except UnicodeDecodeError:
                     continue
                 except json.JSONDecodeError as e:
                     print(f"Ошибка парсинга JSON с {encoding}: {str(e)}")
                     continue
 
-            print("Не удалось прочитать файл ни с одной кодировкой")
-            return []
-
     except Exception as e:
         print(f"Ошибка чтения файла: {str(e)}")
         return []
 
-    print("=== Завершение чтения файла ===\n")
+    return []
+
 
 
 @bp.route('/upload', methods=['POST'])
@@ -492,23 +563,25 @@ def upload_files():
     print(f"Получено файлов: {len(files)}")
     print(f"Имена файлов: {[f.filename for f in files]}")
 
-    new_data = []
-    existing_weeks = set()
-    conflicts = []
+    # Структуры для хранения данных
+    file_data_list = []  # Данные из всех файлов
+    existing_weeks = set()  # Существующие номера недель
+    conflicts = []  # Информация о конфликтах
 
-    # Загружаем существующие данные
+    # Читаем существующие данные
     current_data = read_merged_file()
     print(f"Текущие данные загружены: {current_data is not None}")
 
+    # Собираем информацию о существующих неделях
     if current_data:
         if isinstance(current_data, list):
             for item in current_data:
                 if 'timetable' in item:
                     for week in item['timetable']:
                         existing_weeks.add(week['week_number'])
-            print(f"Найдено существующих недель: {len(existing_weeks)}")
-            print(f"Номера недель: {sorted(list(existing_weeks))}")
-        new_data.extend(current_data)
+                    file_data_list.extend(current_data)
+        print(f"Найдено существующих недель: {len(existing_weeks)}")
+        print(f"Номера недель: {sorted(list(existing_weeks))}")
 
     # Обрабатываем новые файлы
     for file in files:
@@ -521,86 +594,97 @@ def upload_files():
             file_content = file.read()
             print(f"Размер файла: {len(file_content)} байт")
 
-            try:
-                # Пробуем разные кодировки
-                for encoding in ['windows-1251', 'utf-8', 'utf-8-sig']:
-                    try:
-                        content = file_content.decode(encoding)
-                        print(f"Успешная декодировка с {encoding}")
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                else:
-                    raise UnicodeDecodeError("Не удалось определить кодировку файла")
-
-                # Обрабатываем escape-последовательности
-                content = content.replace('\\', '\\\\')
-
-                # Парсим JSON
-                file_data = json.loads(content)
-                print("JSON успешно прочитан")
-
-                if not isinstance(file_data, list):
-                    print(f"Неверный формат данных. Ожидался список, получен {type(file_data)}")
+            # Пробуем разные кодировки
+            decoded = False
+            for encoding in ['windows-1251', 'utf-8', 'utf-8-sig']:
+                try:
+                    content = file_content.decode(encoding)
+                    print(f"Успешная декодировка с {encoding}")
+                    decoded = True
+                    break
+                except UnicodeDecodeError:
                     continue
 
-                # Проверяем недели в новом файле
-                for item in file_data:
-                    if 'timetable' in item:
-                        for week in item['timetable']:
-                            week_num = week['week_number']
-                            if week_num in existing_weeks:
-                                print(f"Конфликт: неделя {week_num}")
-                                conflicts.append({
-                                    'week': week_num,
-                                    'file': file.filename,
-                                    'date_start': week['date_start'],
-                                    'date_end': week['date_end']
-                                })
-                            else:
-                                new_data.append(item)
-                                existing_weeks.add(week_num)
-                                print(f"Добавлена неделя {week_num}")
+            if not decoded:
+                raise UnicodeDecodeError("Не удалось определить кодировку файла")
 
-            except json.JSONDecodeError as e:
-                print(f"Ошибка парсинга JSON: {str(e)}")
-                # Показываем контекст ошибки
-                if hasattr(e, 'pos'):
-                    start = max(0, e.pos - 50)
-                    end = min(len(content), e.pos + 50)
-                    print(f"Контекст ошибки: {content[start:end]}")
-                raise
+            # Обрабатываем escape-последовательности
+            content = content.replace('\\', '\\\\')
 
+            # Парсим JSON
+            file_data = json.loads(content)
+            print("JSON успешно прочитан")
+
+            if not isinstance(file_data, list):
+                file_data = [file_data]
+
+            # Проверяем недели в файле
+            for item in file_data:
+                if 'timetable' in item:
+                    for week in item['timetable']:
+                        week_num = week['week_number']
+                        if week_num in existing_weeks:
+                            print(f"Конфликт: неделя {week_num} в файле {file.filename}")
+                            conflicts.append({
+                                'week': week_num,
+                                'file': file.filename,
+                                'date_start': week['date_start'],
+                                'date_end': week['date_end']
+                            })
+                file_data_list.append(item)
+
+        except json.JSONDecodeError as e:
+            print(f"Ошибка парсинга JSON: {str(e)}")
+            if hasattr(e, 'pos'):
+                start = max(0, e.pos - 50)
+                end = min(len(content), e.pos + 50)
+                print(f"Контекст ошибки: {content[start:end]}")
+            flash(f'Ошибка парсинга JSON в файле {file.filename}', 'error')
+            return redirect(url_for('timetable.index'))
         except Exception as e:
             print(f"Ошибка обработки файла: {str(e)}")
             flash(f'Ошибка при обработке файла {file.filename}: {str(e)}', 'error')
             return redirect(url_for('timetable.index'))
 
     print(f"\nИтоги обработки:")
+    print(f"Всего собрано данных: {len(file_data_list)}")
     print(f"Конфликтов найдено: {len(conflicts)}")
-    print(f"Всего недель в новых данных: {len(new_data)}")
 
     # Если есть конфликты
     if conflicts:
         print("Сохранение данных во временный файл")
         temp_id = save_temp_data({
-            'pending_data': new_data,
+            'pending_data': file_data_list,
             'conflicts': conflicts
         })
         session['temp_id'] = temp_id
         return redirect(url_for('timetable.resolve_conflicts'))
 
-    # Если конфликтов нет, сохраняем данные
     try:
-        print("Сохранение объединенных данных")
-        save_merged_data(new_data)
-        flash('Файлы успешно загружены и объединены', 'success')
+        print("Объединение и сохранение данных")
+        # Собираем все недели
+        all_weeks = []
+        for item in file_data_list:
+            if 'timetable' in item:
+                all_weeks.extend(item['timetable'])
+
+        # Объединяем недели
+        merged_weeks = merge_weeks(all_weeks)
+        final_data = [{'timetable': merged_weeks}]
+
+        # Сохраняем результат
+        if save_merged_data(final_data):
+            flash('Файлы успешно загружены и объединены', 'success')
+        else:
+            flash('Ошибка при сохранении данных', 'error')
+
     except Exception as e:
-        print(f"Ошибка сохранения: {str(e)}")
-        flash(f'Ошибка при сохранении данных: {str(e)}', 'error')
+        print(f"Ошибка при объединении данных: {str(e)}")
+        flash(f'Ошибка при объединении данных: {str(e)}', 'error')
 
     print("=== Завершение загрузки файлов ===\n")
     return redirect(url_for('timetable.index'))
+
 
 
 @bp.route('/resolve_conflicts')
@@ -617,111 +701,92 @@ def resolve_conflicts():
         flash('Данные о конфликтах не найдены', 'error')
         return redirect(url_for('timetable.index'))
 
-    return render_template('timetable/resolve_conflicts.html', conflicts=temp_data['conflicts'])
+    # Группируем конфликты по номерам недель
+    conflicts_by_week = {}
+    for conflict in temp_data['conflicts']:
+        week_num = conflict['week']
+        if week_num not in conflicts_by_week:
+            conflicts_by_week[week_num] = {
+                'week': week_num,
+                'date_start': conflict['date_start'],
+                'date_end': conflict['date_end'],
+                'files': []
+            }
+        conflicts_by_week[week_num]['files'].append(conflict['file'])
+
+    return render_template('timetable/resolve_conflicts.html',
+                         conflicts=conflicts_by_week.values())
 
 
 @bp.route('/apply_resolution', methods=['POST'])
 @admin_required
 def apply_resolution():
     """Применение решений по конфликтам"""
+    resolutions = request.json
+    temp_id = session.get('temp_id')
+
+    if not temp_id:
+        return jsonify({
+            'status': 'error',
+            'message': 'Данные для обработки не найдены'
+        }), 400
+
+    temp_data = load_temp_data(temp_id)
+    if not temp_data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Временные данные не найдены'
+        }), 400
+
+    pending_data = temp_data['pending_data']
+    current_data = read_merged_file() or []
+
+    # Обрабатываем каждую неделю согласно решению
+    for week_num, action in resolutions.items():
+        week_num = int(week_num)
+
+        if action == 'skip':
+            # Пропускаем новые данные для этой недели
+            pending_data = [
+                item for item in pending_data
+                if 'timetable' not in item or
+                   not any(w['week_number'] == week_num for w in item['timetable'])
+            ]
+        elif action == 'replace':
+            # Удаляем старые данные
+            current_data = [
+                item for item in current_data
+                if 'timetable' not in item or
+                   not any(w['week_number'] == week_num for w in item['timetable'])
+            ]
+            # Добавляем новые данные
+            current_data.extend([
+                item for item in pending_data
+                if 'timetable' in item and
+                   any(w['week_number'] == week_num for w in item['timetable'])
+            ])
+
+    # Объединяем оставшиеся данные
+    final_data = current_data + [
+        item for item in pending_data
+        if item not in current_data
+    ]
+
     try:
-        resolutions = request.json
-        temp_id = session.get('temp_id')
-
-        if not temp_id:
-            return jsonify({
-                'status': 'error',
-                'message': 'Данные для обработки не найдены'
-            }), 400
-
-        temp_data = load_temp_data(temp_id)
-        if not temp_data:
-            return jsonify({
-                'status': 'error',
-                'message': 'Временные данные не найдены'
-            }), 400
-
-        pending_data = temp_data['pending_data']
-        current_data = read_merged_file() or []
-
-        # Обрабатываем каждую неделю согласно решению
-        for week_num, action in resolutions.items():
-            week_num = int(week_num)
-
-            if action == 'merge':
-                # Собираем все данные для этой недели
-                all_weeks = []
-
-                # Из текущих данных
-                for item in current_data:
-                    if 'timetable' in item:
-                        for week in item['timetable']:
-                            if week['week_number'] == week_num:
-                                all_weeks.append(week)
-
-                # Из новых данных
-                for item in pending_data:
-                    if 'timetable' in item:
-                        for week in item['timetable']:
-                            if week['week_number'] == week_num:
-                                all_weeks.append(week)
-
-                # Объединяем недели
-                merged_weeks = merge_weeks(all_weeks)
-
-                # Удаляем старые данные об этой неделе
-                current_data = [
-                    item for item in current_data
-                    if 'timetable' not in item or
-                       not any(w['week_number'] == week_num for w in item['timetable'])
-                ]
-
-                # Добавляем объединенные данные
-                if merged_weeks:
-                    current_data.append({'timetable': merged_weeks})
-
-            elif action == 'skip':
-                # Пропускаем новые данные
-                pending_data = [
-                    item for item in pending_data
-                    if 'timetable' not in item or
-                       not any(w['week_number'] == week_num for w in item['timetable'])
-                ]
-            elif action == 'replace':
-                # Удаляем старые данные
-                current_data = [
-                    item for item in current_data
-                    if 'timetable' not in item or
-                       not any(w['week_number'] == week_num for w in item['timetable'])
-                ]
-                # Добавляем новые данные
-                current_data.extend([
-                    item for item in pending_data
-                    if 'timetable' in item and
-                       any(w['week_number'] == week_num for w in item['timetable'])
-                ])
-
-        # Объединяем оставшиеся данные
-        merged_data = current_data + [
-            item for item in pending_data
-            if item not in current_data
-        ]
-
         # Сохраняем результат
-        save_merged_data(merged_data)
+        save_merged_data(final_data)
 
         # Очищаем временные данные
         remove_temp_data(temp_id)
         session.pop('temp_id', None)
 
-        flash('Конфликты успешно разрешены', 'success')
         return jsonify({'status': 'success'})
-
     except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
+
 
 @bp.errorhandler(Exception)
 def handle_error(e):
@@ -731,14 +796,37 @@ def handle_error(e):
         session.pop('temp_id', None)
     return str(e), 500
 
+
 def save_merged_data(data):
     """Сохранение объединенных данных"""
-    # Создаем папку, если её нет
-    os.makedirs(os.path.dirname(MERGED_FILE), exist_ok=True)
+    print("\n=== Начало сохранения данных ===")
+    try:
+        # Создаем папку, если её нет
+        os.makedirs(os.path.dirname(MERGED_FILE), exist_ok=True)
+        print(f"Директория проверена: {os.path.dirname(MERGED_FILE)}")
 
-    # Сохраняем данные в windows-1251
-    with open(MERGED_FILE, 'w', encoding='windows-1251') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        # Объединяем недели
+        weeks = []
+        for item in data:
+            if 'timetable' in item:
+                weeks.extend(item['timetable'])
+        print(f"Собрано недель для объединения: {len(weeks)}")
+
+        # Объединяем недели
+        merged_weeks = merge_weeks(weeks)
+        print(f"Объединено недель: {len(merged_weeks)}")
+
+        # Сохраняем результат
+        final_data = [{'timetable': merged_weeks}]
+
+        with open(MERGED_FILE, 'w', encoding='windows-1251') as f:
+            json.dump(final_data, f, ensure_ascii=False, indent=2)
+        print(f"Данные сохранены в файл: {MERGED_FILE}")
+
+        return True
+    except Exception as e:
+        print(f"Ошибка сохранения: {str(e)}")
+        return False
 
 
 @bp.route('/room/<room_name>')
