@@ -3,39 +3,41 @@ from flask import request, current_app
 from functools import wraps
 from datetime import datetime
 import requests
-import socket
 import json
-import urllib.request
 
 
-def get_real_ip():
-    """Получение реального IP пользователя"""
+def get_client_ip_info():
+    """Получение информации о клиенте"""
+    # Получаем IP клиента
+    if request.headers.get('X-Forwarded-For'):
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        ip = request.headers.get('X-Real-IP')
+    else:
+        ip = request.remote_addr
+
+    # Получаем информацию о местоположении
     try:
-        # Пробуем получить IP через сервис ipinfo.io
-        with urllib.request.urlopen('https://ipinfo.io/json') as response:
-            data = json.loads(response.read())
-            return data['ip']
+        response = requests.get(f'https://ipinfo.io/{ip}/json')
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'ip': ip,
+                'city': data.get('city', 'Unknown'),
+                'country': data.get('country', 'Unknown'),
+                'region': data.get('region', 'Unknown'),
+                'org': data.get('org', 'Unknown')
+            }
     except:
-        try:
-            # Резервный вариант через api.ipify.org
-            with urllib.request.urlopen('https://api.ipify.org?format=json') as response:
-                data = json.loads(response.read())
-                return data['ip']
-        except:
-            # Если не удалось получить IP через API, используем локальный IP
-            hostname = socket.gethostname()
-            local_ip = socket.gethostbyname(hostname)
-            if local_ip == '127.0.0.1':
-                # Пытаемся получить реальный локальный IP
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                try:
-                    s.connect(('8.8.8.8', 80))
-                    local_ip = s.getsockname()[0]
-                except:
-                    pass
-                finally:
-                    s.close()
-            return local_ip
+        pass
+
+    return {
+        'ip': ip,
+        'city': 'Unknown',
+        'country': 'Unknown',
+        'region': 'Unknown',
+        'org': 'Unknown'
+    }
 
 
 def send_notification(message):
@@ -62,16 +64,6 @@ def send_notification(message):
         return False
 
 
-def get_user_location():
-    """Получение местоположения пользователя по IP"""
-    try:
-        with urllib.request.urlopen('https://ipinfo.io/json') as response:
-            data = json.loads(response.read())
-            return f"{data.get('city', 'Unknown')}, {data.get('country', 'Unknown')}"
-    except:
-        return "Unknown"
-
-
 def notify_view(f):
     """Декоратор для отправки уведомлений"""
 
@@ -80,8 +72,10 @@ def notify_view(f):
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             path = request.path
-            real_ip = get_real_ip()
-            location = get_user_location()
+            client_info = get_client_ip_info()
+
+            # Получаем информацию о браузере
+            user_agent = request.headers.get('User-Agent', 'Unknown')
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
@@ -107,8 +101,11 @@ def notify_view(f):
             message = (
                 f"👀 <b>Просмотр {view_type}</b>\n\n"
                 f"🕒 Время: {timestamp}\n"
-                f"🌐 IP: {real_ip}\n"
-                f"📍 Местоположение: {location}\n"
+                f"🌐 IP клиента: {client_info['ip']}\n"
+                f"📍 Город: {client_info['city']}\n"
+                f"🏳️ Страна: {client_info['country']}\n"
+                f"🏢 Провайдер: {client_info['org']}\n"
+                f"🌍 Браузер: {user_agent}\n"
                 f"📅 Неделя: {week}\n"
             )
 
