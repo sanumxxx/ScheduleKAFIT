@@ -83,47 +83,50 @@ def notify_view(f):
             path = request.path
             client_ip = get_client_ip()
             browser, system = get_browser_info()
+            referer = request.headers.get('Referer', 'Прямой переход')
+            host = request.headers.get('Host', 'Неизвестный хост')
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
             details = ""
+            emoji = "👀"
 
-            if 'group' in path:
+            if 'teacher' in path:
+                teacher_name = kwargs.get('teacher_name', '')
+                view_type = f"расписания преподавателя"
+                details = (
+                    f"👨‍🏫 Преподаватель: <b>{teacher_name}</b>\n"
+                    f"🔍 URL: {host}{path}\n"
+                    f"↩️ Источник перехода: {referer}"
+                )
+                emoji = "👨‍🏫"
+            elif 'group' in path:
                 group_name = kwargs.get('group_name', '')
                 view_type = f"расписания группы"
                 details = f"Группа: <b>{group_name}</b>"
-            elif 'teacher' in path:
-                teacher_name = kwargs.get('teacher_name', '')
-                view_type = f"расписания преподавателя"
-                details = f"Преподаватель: <b>{teacher_name}</b>"
+                emoji = "👥"
             elif 'room' in path:
                 room_name = kwargs.get('room_name', '')
                 view_type = f"расписания аудитории"
                 details = f"Аудитория: <b>{room_name}</b>"
+                emoji = "🚪"
             elif 'free_rooms' in path:
                 view_type = "списка свободных аудиторий"
+                emoji = "🔍"
 
             week = request.args.get('week', 'текущая')
 
-            # Добавляем информацию о всех заголовках для отладки
-            headers_info = "\n\nЗаголовки запроса:\n"
-            for header, value in request.headers.items():
-                headers_info += f"{header}: {value}\n"
-
             message = (
-                f"👀 <b>Просмотр {view_type}</b>\n\n"
+                f"{emoji} <b>Просмотр {view_type}</b>\n\n"
                 f"🕒 Время: {timestamp}\n"
-                f"🌐 IP клиента: {client_ip}\n"
-                f"💻 Устройство: {system}\n"
+                f"🌐 IP: {client_ip}\n"
+                f"💻 ОС: {system}\n"
                 f"🌍 Браузер: {browser}\n"
                 f"📅 Неделя: {week}\n"
             )
 
             if details:
-                message += f"{details}\n"
-
-            # Временно добавляем отладочную информацию
-            print("Debug headers:", headers_info)
+                message += f"\n{details}\n"
 
             send_notification(message)
 
