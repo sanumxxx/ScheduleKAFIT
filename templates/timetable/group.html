@@ -21,6 +21,15 @@
         {% endif %}
     {% endfor %}
 </select>
+
+<a href="{{ url_for('timetable.export_excel', type='group', name=group_name, week=current_week) }}"
+   class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center gap-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+    </svg>
+    Экспорт в Excel
+</a>
+
                 {% if current_user.is_authenticated and session.get('is_admin') %}
                     <button
                             onclick="toggleEditMode()"
@@ -810,10 +819,11 @@
         });
 
         function changeWeek(weekNumber) {
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('week', weekNumber);
-    window.location.href = currentUrl.toString();
-}
+        updateExportLink(weekNumber);
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('week', weekNumber);
+        window.location.href = currentUrl.toString();
+    }
 
 
 
@@ -911,6 +921,15 @@
         function formatTime(time) {
             return time.substring(0, 5);
         }
+
+        function updateExportLink(weekNumber) {
+        const exportLink = document.querySelector('a[href*="/export/"]');
+        if (exportLink) {
+            const currentHref = new URL(exportLink.href);
+            currentHref.searchParams.set('week', weekNumber);
+            exportLink.href = currentHref.toString();
+        }
+    }
 
         function generateLessonId(day, time, subgroup) {
             return `${day}_${time}_${subgroup}_${Date.now()}`;

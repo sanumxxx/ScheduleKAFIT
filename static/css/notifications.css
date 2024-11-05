@@ -1,0 +1,23 @@
+/* static/css/notifications.css */
+
+.notification {
+    opacity: 0;
+    transform: translateY(1rem);
+    transition: all 0.3s ease-in-out;
+}
+
+.notification.opacity-100 {
+    opacity: 1;
+}
+
+.notification.translate-y-0 {
+    transform: translateY(0);
+}
+
+.notification.opacity-0 {
+    opacity: 0;
+}
+
+.notification.translate-y-2 {
+    transform: translateY(0.5rem);
+}

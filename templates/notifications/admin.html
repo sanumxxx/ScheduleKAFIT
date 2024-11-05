@@ -1,0 +1,112 @@
+{# templates/notifications/admin.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Управление уведомлениями</h1>
+    </div>
+
+    <!-- Форма создания -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-medium mb-4">Создать новое уведомление</h2>
+        <form action="{{ url_for('notifications.create', key=request.args.get('key')) }}" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Заголовок</label>
+                    <input type="text" name="title" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Тип</label>
+                    <select name="type" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="update">Обновление</option>
+                        <option value="maintenance">Обслуживание</option>
+                        <option value="info">Информация</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Активно с</label>
+                    <input type="datetime-local" name="active_from" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Активно до</label>
+                    <input type="datetime-local" name="active_until" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Приоритет</label>
+                    <select name="priority" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="low">Низкий</option>
+                        <option value="normal">Обычный</option>
+                        <option value="high">Высокий</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Сообщение</label>
+                <textarea name="message" rows="3" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Список новых функций (каждая с новой строки)</label>
+                <textarea name="features" rows="4"
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
+                    Создать
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Список уведомлений -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-medium mb-4">Существующие уведомления</h2>
+        <div class="space-y-4">
+            {% for notification in notifications %}
+            <div class="border rounded-lg p-4 {% if loop.first %}border-indigo-500{% else %}border-gray-200{% endif %}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-medium">{{ notification.title }}</h3>
+                        <p class="text-sm text-gray-500">{{ notification.message }}</p>
+                        {% if notification.features %}
+                        <ul class="mt-2 list-disc list-inside text-sm text-gray-600">
+                            {% for feature in notification.features %}
+                            <li>{{ feature }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                        <div class="mt-2 text-sm text-gray-500">
+                            Активно: {{ notification.active_from }} - {{ notification.active_until }}
+                        </div>
+                    </div>
+                    <form action="{{ url_for('notifications.delete', notification_id=notification.id, key=request.args.get('key')) }}"
+                          method="POST"
+                          onsubmit="return confirm('Удалить это уведомление?')">
+                        <button type="submit"
+                                class="text-red-600 hover:text-red-800">
+                            Удалить
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500">Нет активных уведомлений</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

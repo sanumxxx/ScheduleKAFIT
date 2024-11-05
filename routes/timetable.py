@@ -1,27 +1,25 @@
 # routes/timetable.py
+import json
+import pickle
+import tempfile
+import uuid
+from functools import wraps
+from transliterate import translit
+from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, jsonify, request, redirect, url_for, session, json, flash, \
     get_flashed_messages
 from flask.app import Flask
-from config.config import Config
-import tempfile
-import pickle
-import uuid
-import json
-from datetime import datetime, timedelta
-from services.json_handler import TimetableHandler
 from flask_login import login_required, current_user
-import os
-from functools import wraps
-from utils.telegram_notifier import notify_view
-from flask import current_app
 
+from config.config import Config
+from services.json_handler import TimetableHandler
+from utils.telegram_notifier import notify_view
 
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 timetable_handler = TimetableHandler()
 app = Flask(__name__)
 
 app.config.from_object(Config)
-
 
 
 @bp.route('/')
@@ -201,6 +199,435 @@ def admin_required(f):
     return decorated_function
 
 
+import os
+from datetime import datetime, timedelta
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+from openpyxl.utils import get_column_letter
+
+
+class ExcelExporter:
+    def __init__(self):
+        # Расписание звонков
+        self.time_slots = [
+            '08:00 - 09:20',
+            '09:30 - 10:50',
+            '11:00 - 12:20',
+            '12:40 - 14:00',
+            '14:10 - 15:30',
+            '15:40 - 17:00',
+            '17:10 - 18:30',
+            '18:40 - 20:00'
+        ]
+        self.days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+
+        # Определение стилей
+        self.styles = {
+            'header': {
+                'fill': PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid'),
+                'font': Font(bold=True),
+                'border': Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                ),
+                'alignment': Alignment(horizontal='center', vertical='center', wrap_text=True)
+            },
+            'cell': {
+                'border': Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                ),
+                # Обновляем выравнивание для лучшей читаемости
+                'alignment': Alignment(
+                    horizontal='center',
+                    vertical='center',
+                    wrap_text=True,
+                    shrink_to_fit=False  # Отключаем уменьшение текста
+                )
+            },
+            'title': {
+                'font': Font(bold=True, size=14),
+                'alignment': Alignment(horizontal='center')
+            },
+            'lesson_types': {
+                'л.': PatternFill(start_color='E6F3FF', end_color='E6F3FF', fill_type='solid'),
+                'пр.': PatternFill(start_color='E6FFE6', end_color='E6FFE6', fill_type='solid'),
+                'лаб.': PatternFill(start_color='FFE6FF', end_color='FFE6FF', fill_type='solid')
+            }
+        }
+
+    def create_excel(self, timetable_data, week_number, group_name=None, teacher_name=None, room_name=None):
+        """Создание Excel файла с расписанием"""
+        wb = Workbook()
+        ws = wb.active
+
+        # Находим информацию о выбранной неделе
+        week_info = self._get_week_info(timetable_data, week_number)
+
+        # Настраиваем заголовок и общую информацию
+        self._setup_worksheet_info(ws, week_info, group_name, teacher_name, room_name)
+
+        # Создаем шапку таблицы
+        self._create_table_header(ws, week_info)
+
+        # Заполняем временные слоты
+        self._fill_time_slots(ws)
+
+        # Настраиваем размеры столбцов
+        self._setup_column_dimensions(ws)
+
+        # Заполняем данные расписания
+        if week_info:
+            self._fill_timetable_data(ws, week_info, group_name, teacher_name, room_name)
+
+        # Применяем финальное форматирование
+        self._apply_final_formatting(ws)
+
+        self._apply_cell_formatting(ws)
+
+        return wb
+
+    def _get_week_info(self, timetable_data, week_number):
+        """Получение информации о выбранной неделе"""
+        if isinstance(timetable_data, list) and len(timetable_data) > 0:
+            for week in timetable_data[0].get('timetable', []):
+                if str(week.get('week_number')) == str(week_number):
+                    return week
+        return None
+
+    def _setup_worksheet_info(self, ws, week_info, group_name, teacher_name, room_name):
+        """Настройка общей информации листа"""
+        # Устанавливаем название листа
+        if group_name:
+            ws.title = f"Группа {group_name}"
+        elif teacher_name:
+            ws.title = f"Преподаватель {teacher_name}"
+        elif room_name:
+            ws.title = f"Аудитория {room_name}"
+
+        # Формируем заголовок
+        title_parts = []
+        if group_name:
+            title_parts.append(f'Расписание группы {group_name}')
+        elif teacher_name:
+            title_parts.append(f'Расписание преподавателя {teacher_name}')
+        elif room_name:
+            title_parts.append(f'Расписание аудитории {room_name}')
+
+        if week_info:
+            title_parts.append(
+                f'Неделя {week_info.get("week_number")} ({week_info.get("date_start")} - {week_info.get("date_end")})')
+
+        # Применяем заголовок
+        ws.merge_cells('A1:G1')
+        ws['A1'] = ' | '.join(title_parts)
+        ws['A1'].font = self.styles['title']['font']
+        ws['A1'].alignment = self.styles['title']['alignment']
+
+    def _create_table_header(self, ws, week_info):
+        """Создание шапки таблицы"""
+        ws['A2'] = 'Время'
+        if week_info and week_info.get('date_start'):
+            try:
+                start = datetime.strptime(week_info['date_start'], '%d.%m.%Y')
+                for i, day in enumerate(self.days):
+                    col = get_column_letter(i + 2)
+                    current_date = start + timedelta(days=i)
+                    ws[f'{col}2'] = f'{day}\n{current_date.strftime("%d.%m")}'
+            except:
+                self._fill_default_headers(ws)
+        else:
+            self._fill_default_headers(ws)
+
+        # Применяем стили к заголовкам
+        for i in range(1, 8):
+            cell = ws[f'{get_column_letter(i)}2']
+            cell.fill = self.styles['header']['fill']
+            cell.border = self.styles['header']['border']
+            cell.alignment = self.styles['header']['alignment']
+            cell.font = self.styles['header']['font']
+
+    def _fill_default_headers(self, ws):
+        """Заполнение заголовков по умолчанию"""
+        for i, day in enumerate(self.days):
+            ws[f'{get_column_letter(i + 2)}2'] = day
+
+    def _fill_time_slots(self, ws):
+        """Заполнение временных слотов"""
+        for i, time_slot in enumerate(self.time_slots, start=3):
+            cell = ws[f'A{i}']
+            cell.value = time_slot
+            cell.border = self.styles['cell']['border']
+            cell.alignment = self.styles['cell']['alignment']
+
+    def _setup_column_dimensions(self, ws):
+        """Настройка размеров столбцов"""
+        ws.column_dimensions['A'].width = 15
+        for i in range(2, 8):
+            ws.column_dimensions[get_column_letter(i)].width = 30
+
+    def _fill_timetable_data(self, ws, week_info, group_name, teacher_name, room_name):
+        """Заполнение данных расписания"""
+        if group_name:
+            self._fill_group_data(ws, week_info, group_name)
+        elif teacher_name:
+            self._fill_teacher_data(ws, week_info, teacher_name)
+        elif room_name:
+            self._fill_room_data(ws, week_info, room_name)
+
+    def _fill_group_data(self, ws, week, group_name):
+        """Заполнение данных для группы"""
+        for group in week.get('groups', []):
+            if group.get('group_name') == group_name:
+                for day in group.get('days', []):
+                    day_index = day.get('weekday', 0)
+                    # Сначала группируем занятия по времени
+                    lessons_by_time = {}
+                    for lesson in day.get('lessons', []):
+                        time_index = lesson.get('time', 0)
+                        if time_index not in lessons_by_time:
+                            lessons_by_time[time_index] = []
+                        lessons_by_time[time_index].append(lesson)
+
+                    # Теперь обрабатываем сгруппированные занятия
+                    for time_index, lessons in lessons_by_time.items():
+                        if 0 < time_index <= 8 and 0 < day_index <= 6:
+                            cell = ws.cell(row=time_index + 2, column=day_index + 1)
+
+                            if len(lessons) == 1:
+                                # Одно занятие
+                                cell.value = self._format_lesson(lessons[0])
+                                self._apply_lesson_style(cell, lessons[0])
+                            else:
+                                # Несколько занятий (подгруппы)
+                                # Сортируем по номеру подгруппы
+                                lessons.sort(key=lambda x: x.get('subgroup', 0))
+                                formatted_lessons = []
+                                for lesson in lessons:
+                                    formatted_lessons.append(self._format_lesson(lesson))
+                                cell.value = '\n---\n'.join(formatted_lessons)
+                                # Применяем смешанный стиль или стиль первого занятия
+                                self._apply_multiple_lessons_style(cell, lessons)
+
+    def _fill_teacher_data(self, ws, week, teacher_name):
+        """Заполнение данных для преподавателя"""
+        for group in week.get('groups', []):
+            for day in group.get('days', []):
+                day_index = day.get('weekday', 0)
+                lessons_by_time = {}
+                for lesson in day.get('lessons', []):
+                    if any(teacher.get('teacher_name') == teacher_name for teacher in lesson.get('teachers', [])):
+                        time_index = lesson.get('time', 0)
+                        if time_index not in lessons_by_time:
+                            lessons_by_time[time_index] = []
+                        lessons_by_time[time_index].append((lesson, group.get('group_name')))
+
+                for time_index, lesson_group_pairs in lessons_by_time.items():
+                    if 0 < time_index <= 8 and 0 < day_index <= 6:
+                        cell = ws.cell(row=time_index + 2, column=day_index + 1)
+                        formatted_lessons = []
+                        for lesson, group_name in lesson_group_pairs:
+                            lesson_text = f"{lesson.get('subject')}\n{group_name}"
+                            if lesson.get('subgroup'):
+                                lesson_text += f"\nПодгруппа {lesson.get('subgroup')}"
+                            lesson_text += f"\nауд. {lesson.get('auditories', [{}])[0].get('auditory_name', '')}"
+                            formatted_lessons.append(lesson_text)
+                        cell.value = '\n---\n'.join(formatted_lessons)
+                        self._apply_multiple_lessons_style(cell, [pair[0] for pair in lesson_group_pairs])
+
+    def _fill_room_data(self, ws, week, room_name):
+        """Заполнение данных для аудитории"""
+        for group in week.get('groups', []):
+            for day in group.get('days', []):
+                day_index = day.get('weekday', 0)
+                lessons_by_time = {}
+                for lesson in day.get('lessons', []):
+                    if any(room.get('auditory_name') == room_name for room in lesson.get('auditories', [])):
+                        time_index = lesson.get('time', 0)
+                        if time_index not in lessons_by_time:
+                            lessons_by_time[time_index] = []
+                        lessons_by_time[time_index].append((lesson, group.get('group_name')))
+
+                for time_index, lesson_group_pairs in lessons_by_time.items():
+                    if 0 < time_index <= 8 and 0 < day_index <= 6:
+                        cell = ws.cell(row=time_index + 2, column=day_index + 1)
+                        formatted_lessons = []
+                        for lesson, group_name in lesson_group_pairs:
+                            lesson_text = f"{lesson.get('subject')}\n{group_name}"
+                            if lesson.get('subgroup'):
+                                lesson_text += f"\nПодгруппа {lesson.get('subgroup')}"
+                            lesson_text += f"\n{lesson.get('teachers', [{}])[0].get('teacher_name', '')}"
+                            formatted_lessons.append(lesson_text)
+                        cell.value = '\n---\n'.join(formatted_lessons)
+                        self._apply_multiple_lessons_style(cell, [pair[0] for pair in lesson_group_pairs])
+
+    def _format_lesson(self, lesson):
+        """Форматирование информации о занятии в компактном виде"""
+        lines = []
+
+        # Первая строка: предмет
+        subject_line = lesson.get('subject', '')
+        lines.append(subject_line)
+
+        # Вторая строка: тип занятия и подгруппа
+        type_subgroup_parts = []
+        if lesson.get('type'):
+            type_subgroup_parts.append(lesson.get('type'))
+        if lesson.get('subgroup'):
+            type_subgroup_parts.append(f"Подгруппа {lesson.get('subgroup')}")
+        if type_subgroup_parts:
+            lines.append(' • '.join(type_subgroup_parts))
+
+        # Третья строка: преподаватель
+        if lesson.get('teachers'):
+            teacher_name = lesson.get('teachers', [{}])[0].get('teacher_name', '')
+            if teacher_name:
+                lines.append(teacher_name)
+
+        # Четвертая строка: аудитория
+        if lesson.get('auditories'):
+            auditory_name = lesson.get('auditories', [{}])[0].get('auditory_name', '')
+            if auditory_name:
+                lines.append(f"ауд. {auditory_name}")
+
+        return '\n'.join(lines)
+
+    def _apply_lesson_style(self, cell, lesson):
+        """Применение стилей к ячейке с занятием"""
+        cell.border = self.styles['cell']['border']
+
+        # Обновленное выравнивание для компактности
+        cell.alignment = Alignment(
+            horizontal='center',
+            vertical='center',
+            wrap_text=True,
+            shrink_to_fit=False
+        )
+
+        # Применяем цвет в зависимости от типа занятия
+        lesson_type = lesson.get('type')
+        if lesson_type in self.styles['lesson_types']:
+            cell.fill = self.styles['lesson_types'][lesson_type]
+
+        # Устанавливаем шрифт
+        cell.font = Font(size=9)  # Немного уменьшаем размер шрифта для компактности
+
+    def _apply_cell_formatting(self, ws):
+        """Применение форматирования к ячейкам"""
+        # Настройка размеров
+        ws.column_dimensions['A'].width = 15
+        for i in range(2, 8):
+            ws.column_dimensions[get_column_letter(i)].width = 35  # Немного уменьшаем ширину
+
+        # Настройка высоты строк
+        for row in range(3, 11):  # Строки с занятиями
+            max_lines = 1
+            for col in range(2, 8):  # Все дни недели
+                cell = ws.cell(row=row, column=col)
+                if cell.value:
+                    lines_count = len(str(cell.value).split('\n'))
+                    max_lines = max(max_lines, lines_count)
+
+            # Устанавливаем высоту строки на основе количества строк текста
+            row_height = max(15 * max_lines, 30)  # Минимум 30, иначе 15 пикселей на строку
+            ws.row_dimensions[row].height = row_height
+
+    def _apply_multiple_lessons_style(self, cell, lessons):
+        """Применение стилей к ячейке с несколькими занятиями"""
+        cell.border = self.styles['cell']['border']
+        cell.alignment = Alignment(
+            horizontal='center',
+            vertical='center',
+            wrap_text=True,
+            shrink_to_fit=False
+        )
+
+        # Устанавливаем шрифт
+        cell.font = Font(size=9)
+
+        # Если несколько занятий, добавляем разделитель
+        if len(lessons) > 1:
+            cell_text = cell.value
+            if cell_text:
+                parts = cell_text.split('\n---\n')
+                cell.value = '\n--\n'.join(parts)  # Используем более компактный разделитель
+
+    def _apply_final_formatting(self, ws):
+        """Применение финального форматирования к таблице"""
+        for row in ws.iter_rows(min_row=2, max_row=10, min_col=1, max_col=7):
+            for cell in row:
+                if not cell.fill.start_color.index:
+                    cell.fill = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
+                if not cell.border:
+                    cell.border = self.styles['cell']['border']
+                if not cell.alignment:
+                    cell.alignment = self.styles['cell']['alignment']
+
+        # Устанавливаем высоту строк и ширину столбцов
+        ws.column_dimensions['A'].width = 15
+        for i in range(2, 8):
+            ws.column_dimensions[get_column_letter(i)].width = 40  # Увеличиваем ширину столбцов
+
+        # Устанавливаем автоматическую высоту строк
+        for row in range(2, 11):
+            ws.row_dimensions[row].height = None  # Автоматическая высота
+            # Устанавливаем минимальную высоту, если содержимое маленькое
+            current_height = ws.row_dimensions[row].height
+            if current_height is None or current_height < 45:
+                ws.row_dimensions[row].height = 45
+
+
+from io import BytesIO
+from flask import send_file
+
+
+@bp.route('/export/<type>/<name>')
+def export_excel(type, name):
+    """Экспорт расписания в Excel"""
+    try:
+        week = request.args.get('week')
+        if not week:
+            return "Не указана неделя для экспорта", 400
+
+        timetable_data = timetable_handler.read_timetable()
+        exporter = ExcelExporter()
+
+        if type == 'group':
+            wb = exporter.create_excel(timetable_data, week, group_name=name)
+            filename = f"Расписание_группы_{name}_неделя_{week}.xlsx"
+        elif type == 'teacher':
+            wb = exporter.create_excel(timetable_data, week, teacher_name=name)
+            filename = f"Расписание_преподавателя_{name}_неделя_{week}.xlsx"
+        elif type == 'room':
+            wb = exporter.create_excel(timetable_data, week, room_name=name)
+            filename = f"Расписание_аудитории_{name}_неделя_{week}.xlsx"
+        else:
+            return "Неверный тип экспорта", 400
+
+        # Конвертируем имя файла в безопасный формат и транслитерируем русские буквы
+        filename = translit(filename, 'ru', reversed=True)
+        filename = secure_filename(filename)
+
+        # Сохраняем в BytesIO
+        excel_file = BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        print(f"Ошибка при экспорте в Excel: {str(e)}")
+        return f"Ошибка при создании Excel файла: {str(e)}", 500
+
 @bp.route('/group/<group_name>')
 @notify_view
 def group_timetable(group_name):
@@ -301,6 +728,7 @@ def group_timetable(group_name):
                            timetable=timetable_data,
                            get_lessons=get_lessons_wrapper,
                            unique_values=unique_values)
+
 
 @bp.route('/free_rooms', methods=['GET', 'POST'])
 @notify_view

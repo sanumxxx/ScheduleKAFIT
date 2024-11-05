@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin
 from routes import timetable, auth, api
 import os
 import socket
+from routes.notifications import bp as notifications_bp
+from models.notifications import Notification, NotificationManager
 
 
 from routes.auth import init_login_manager
@@ -35,6 +37,8 @@ def create_app():
     app.register_blueprint(timetable.bp)
     app.register_blueprint(auth.bp)
 
+
+
     app.register_blueprint(api.bp)
 
     # Обработчики ошибок
@@ -50,6 +54,9 @@ def create_app():
     @app.route('/')
     def index():
         return redirect(url_for('timetable.index'))
+
+
+    app.register_blueprint(notifications_bp)
 
     return app
 
