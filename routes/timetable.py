@@ -125,27 +125,32 @@ def merge_weeks(weeks):
                         })
                     print(f"Создана новая запись для группы {group_name}")
 
-                # Обновляем уроки для каждого дня
+                # Обрабатываем каждый день группы
                 for day in group.get('days', []):
                     weekday = day.get('weekday')
                     if weekday:
                         day_index = weekday - 1
                         if day_index < len(groups_dict[group_name]['days']):
-                            # Добавляем новые уроки
-                            existing_lessons = groups_dict[group_name]['days'][day_index]['lessons']
-                            new_lessons = day.get('lessons', [])
+                            existing_day = groups_dict[group_name]['days'][day_index]
 
-                            # Проверяем дубликаты уроков
-                            for new_lesson in new_lessons:
-                                is_duplicate = False
-                                for existing_lesson in existing_lessons:
-                                    if (existing_lesson.get('time') == new_lesson.get('time') and
+                            # Обрабатываем каждый урок
+                            for new_lesson in day.get('lessons', []):
+                                should_add = True
+                                new_time = new_lesson.get('time')
+                                new_subgroup = new_lesson.get('subgroup', 0)
+
+                                # Проверяем существующие уроки
+                                for existing_lesson in existing_day['lessons']:
+                                    if (existing_lesson.get('time') == new_time and
+                                            existing_lesson.get('subgroup') == new_subgroup and
                                             existing_lesson.get('subject') == new_lesson.get('subject')):
-                                        is_duplicate = True
+                                        should_add = False
                                         break
-                                if not is_duplicate:
-                                    existing_lessons.append(new_lesson)
-                                    print(f"Добавлен новый урок для группы {group_name}, день {weekday}")
+
+                                if should_add:
+                                    existing_day['lessons'].append(new_lesson)
+                                    print(f"Добавлен урок для группы {group_name}, день {weekday}, "
+                                          f"время {new_time}, подгруппа {new_subgroup}")
 
         # Преобразуем словарь групп обратно в список
         merged_week['groups'] = list(groups_dict.values())
@@ -462,12 +467,17 @@ def get_lessons(timetable, day, time, group_name, selected_week=None):
                             if group.get('group_name') == group_name:
                                 for day_data in group.get('days', []):
                                     if day_data.get('weekday') == day:
-                                        lessons = [
+                                        # Собираем все занятия для данного времени
+                                        all_lessons = [
                                             lesson for lesson in day_data.get('lessons', [])
                                             if lesson.get('time') == time
                                         ]
-                                        if lessons:
-                                            return lessons
+
+                                        # Если есть занятия, сортируем их по номеру подгруппы
+                                        if all_lessons:
+                                            # Сортировка по номеру подгруппы (0 - общие занятия идут первыми)
+                                            all_lessons.sort(key=lambda x: x.get('subgroup', 0))
+                                            return all_lessons
         return None
     except Exception as e:
         print(f"Ошибка в get_lessons: {str(e)}")
