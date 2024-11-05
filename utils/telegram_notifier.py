@@ -75,7 +75,6 @@ def send_notification(message):
 
 def notify_view(f):
     """Декоратор для отправки уведомлений"""
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -85,6 +84,13 @@ def notify_view(f):
             browser, system = get_browser_info()
             referer = request.headers.get('Referer', 'Прямой переход')
             host = request.headers.get('Host', 'Неизвестный хост')
+
+            # Отладочный вывод
+            print(f"\nDEBUG: Processing notification")
+            print(f"Path: {path}")
+            print(f"Args: {args}")
+            print(f"Kwargs: {kwargs}")
+            print(f"Headers: {dict(request.headers)}\n")
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
@@ -100,6 +106,7 @@ def notify_view(f):
                     f"↩️ Источник перехода: {referer}"
                 )
                 emoji = "👨‍🏫"
+                print(f"DEBUG: Teacher view detected - {teacher_name}")
             elif 'group' in path:
                 group_name = kwargs.get('group_name', '')
                 view_type = f"расписания группы"
@@ -128,10 +135,14 @@ def notify_view(f):
             if details:
                 message += f"\n{details}\n"
 
-            send_notification(message)
+            print(f"DEBUG: Sending message:\n{message}")
+            send_success = send_notification(message)
+            print(f"DEBUG: Message sent successfully: {send_success}")
 
         except Exception as e:
             print(f"Error in notification wrapper: {e}")
+            import traceback
+            print(traceback.format_exc())
 
         return f(*args, **kwargs)
 

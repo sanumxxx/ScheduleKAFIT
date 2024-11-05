@@ -1,15 +1,22 @@
 # routes/timetable.py
 import json
+import os
 import pickle
 import tempfile
 import uuid
+from datetime import datetime, timedelta
 from functools import wraps
-from transliterate import translit
-from werkzeug.utils import secure_filename
+from io import BytesIO
+from flask import send_file
 from flask import Blueprint, render_template, jsonify, request, redirect, url_for, session, json, flash, \
     get_flashed_messages
 from flask.app import Flask
 from flask_login import login_required, current_user
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+from openpyxl.utils import get_column_letter
+from transliterate import translit
+from werkzeug.utils import secure_filename
 
 from config.config import Config
 from services.json_handler import TimetableHandler
@@ -197,13 +204,6 @@ def admin_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
-
-
-import os
-from datetime import datetime, timedelta
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
-from openpyxl.utils import get_column_letter
 
 
 class ExcelExporter:
@@ -581,8 +581,6 @@ class ExcelExporter:
                 ws.row_dimensions[row].height = 45
 
 
-from io import BytesIO
-from flask import send_file
 
 
 @bp.route('/export/<type>/<name>')
@@ -627,6 +625,7 @@ def export_excel(type, name):
     except Exception as e:
         print(f"Ошибка при экспорте в Excel: {str(e)}")
         return f"Ошибка при создании Excel файла: {str(e)}", 500
+
 
 @bp.route('/group/<group_name>')
 @notify_view
@@ -967,6 +966,7 @@ def update_timetable():
 
 
 @bp.route('/teacher/<teacher_name>')
+@notify_view
 def teacher_timetable(teacher_name):
     """Просмотр расписания преподавателя"""
     timetable_data = timetable_handler.read_timetable()
