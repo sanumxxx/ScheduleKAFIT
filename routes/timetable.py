@@ -17,11 +17,11 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 from openpyxl.utils import get_column_letter
 from transliterate import translit
 from werkzeug.utils import secure_filename
-
+from models.history import TimetableHistory
 from config.config import Config
 from services.json_handler import TimetableHandler
-from utils.telegram_notifier import notify_view
-
+from utils.telegram_notifier import notify_view, notify_lesson_change, get_client_ip, send_lesson_change_notification
+from utils.decorators import admin_required
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 timetable_handler = TimetableHandler()
 app = Flask(__name__)
@@ -195,15 +195,7 @@ def remove_temp_data(temp_id):
         os.remove(temp_path)
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not session.get('is_admin'):
-            flash('Доступ запрещен. Необходимы права администратора.', 'error')
-            return redirect(url_for('timetable.index'))
-        return f(*args, **kwargs)
 
-    return decorated_function
 
 
 class ExcelExporter:
@@ -927,30 +919,120 @@ def edit_timetable(group_name):
 @login_required
 @admin_required
 def update_timetable():
-    data = request.get_json()
-
+    """API для обновления расписания"""
     try:
+        data = request.get_json()
+        print("\n=== DEBUG: RECEIVED DATA ===")
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+
+        history_handler = TimetableHistory()
+
         group_name = data.get('group_name')
         day = data.get('day')
         time = data.get('time')
-        lessons = data.get('lessons')
+        lessons = data.get('lessons', [])
+        week = request.args.get('week')
 
-        print("Получены данные:", {
-            "group_name": group_name,
-            "day": day,
-            "time": time,
-            "lessons": lessons
-        })
+        # Получаем текущие данные напрямую из базы
+        current_lessons = []
+        timetable_data = timetable_handler.read_timetable()
+        if isinstance(timetable_data, list):
+            for item in timetable_data:
+                if 'timetable' in item:
+                    for week_data in item['timetable']:
+                        for group in week_data.get('groups', []):
+                            if group.get('group_name') == group_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        current_lessons.extend([
+                                            lesson for lesson in day_data.get('lessons', [])
+                                            if lesson.get('time') == time
+                                        ])
 
-        if not all([group_name is not None, day is not None, time is not None, isinstance(lessons, list)]):
-            missing = []
-            if group_name is None: missing.append('group_name')
-            if day is None: missing.append('day')
-            if time is None: missing.append('time')
-            if not isinstance(lessons, list): missing.append('lessons')
-            error_msg = f"Missing required data: {', '.join(missing)}"
-            print("Ошибка валидации:", error_msg)
-            return jsonify({"status": "error", "error": error_msg}), 400
+        print("\n=== DEBUG: CURRENT STATE ===")
+        print("Current lessons in database:")
+        print(json.dumps(current_lessons, indent=2, ensure_ascii=False))
+        print("\nNew lessons from request:")
+        print(json.dumps(lessons, indent=2, ensure_ascii=False))
+
+        # Определяем тип операции
+        if not current_lessons and lessons:
+            action = 'create'
+            print("\nACTION: CREATE - Adding new lessons")
+        elif current_lessons and not lessons:
+            action = 'delete'
+            print("\nACTION: DELETE - Removing all lessons")
+        elif current_lessons and lessons:
+            # Проверяем, действительно ли изменились данные
+            changes = False
+            if len(lessons) != len(current_lessons):
+                changes = True
+            else:
+                for new, old in zip(lessons, current_lessons):
+                    if (new.get('subject') != old.get('subject') or
+                            new.get('type') != old.get('type') or
+                            new.get('subgroup') != old.get('subgroup') or
+                            str(new.get('teachers')) != str(old.get('teachers')) or
+                            str(new.get('auditories')) != str(old.get('auditories'))):
+                        changes = True
+                        break
+
+            action = 'update' if changes else None
+            print(f"\nACTION: {action or 'NO CHANGE NEEDED'}")
+
+        print(f"\nFinal determined action: {action}")
+
+        if action:
+            # Подготавливаем данные для истории
+            history_data = {
+                'group_name': group_name,
+                'day': day,
+                'time': time,
+                'week': week,
+                'lessons': lessons,
+                'old_lessons': current_lessons,
+                'editor_ip': get_client_ip()
+            }
+
+            # Добавляем запись в историю
+            history_handler.add_record(action, history_data)
+
+            # Отправляем уведомление
+            if action == 'create':
+                for lesson in lessons:
+                    send_lesson_change_notification(
+                        action='create',
+                        group_name=group_name,
+                        weekday=day,
+                        time_slot=time,
+                        week_number=week,
+                        lesson_data=lesson,
+                        editor_ip=get_client_ip()
+                    )
+            elif action == 'delete':
+                for lesson in current_lessons:
+                    send_lesson_change_notification(
+                        action='delete',
+                        group_name=group_name,
+                        weekday=day,
+                        time_slot=time,
+                        week_number=week,
+                        lesson_data=lesson,
+                        editor_ip=get_client_ip()
+                    )
+            elif action == 'update':
+                for i, new_lesson in enumerate(lessons):
+                    if i < len(current_lessons):
+                        send_lesson_change_notification(
+                            action='update',
+                            group_name=group_name,
+                            weekday=day,
+                            time_slot=time,
+                            week_number=week,
+                            lesson_data=new_lesson,
+                            old_lesson_data=current_lessons[i],
+                            editor_ip=get_client_ip()
+                        )
 
         # Обновляем данные
         success = timetable_handler.update_lessons(group_name, day, time, lessons)
@@ -962,7 +1044,10 @@ def update_timetable():
 
     except Exception as e:
         print(f"Error updating timetable: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({"status": "error", "error": str(e)}), 500
+
 
 
 @bp.route('/teacher/<teacher_name>')

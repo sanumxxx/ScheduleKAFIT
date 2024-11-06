@@ -51,16 +51,42 @@ def get_browser_info():
     return browser, system
 
 
-def send_notification(message):
-    """Отправка уведомлений в Telegram"""
+def format_lesson_info(lesson):
+    """Компактное форматирование информации о паре"""
+    return {
+        'subject': lesson.get('subject', ''),
+        'teacher': lesson.get('teachers', [{}])[0].get('teacher_name', ''),
+        'room': lesson.get('auditories', [{}])[0].get('auditory_name', ''),
+        'type': lesson.get('type', ''),
+        'subgroup': lesson.get('subgroup', 0)
+    }
+
+
+def send_notification(message, theme=None):
+    """
+    Отправка уведомлений в Telegram с указанием темы
+    theme: 'changes' для изменений расписания, 'visits' для просмотров
+    """
     try:
         bot_token = "7938737812:AAFiJZLaiImXRICS53p4TKcvNepP6vpnwSs"
         api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+        # ID тем в Telegram
+        themes = {
+            'changes': 321,  # ID темы для изменений
+            'visits': 323  # ID темы для просмотров
+        }
+
         data = {
             "chat_id": "-1002375937245",
             "text": message,
             "parse_mode": "HTML"
         }
+
+        # Добавляем ID темы, если она указана
+        if theme and theme in themes:
+            data["message_thread_id"] = themes[theme]
+
         response = requests.post(api_url, data=data)
 
         if not response.ok:
@@ -74,7 +100,8 @@ def send_notification(message):
 
 
 def notify_view(f):
-    """Декоратор для отправки уведомлений"""
+    """Декоратор для отправки уведомлений о просмотрах"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -84,13 +111,6 @@ def notify_view(f):
             browser, system = get_browser_info()
             referer = request.headers.get('Referer', 'Прямой переход')
             host = request.headers.get('Host', 'Неизвестный хост')
-
-            # Отладочный вывод
-            print(f"\nDEBUG: Processing notification")
-            print(f"Path: {path}")
-            print(f"Args: {args}")
-            print(f"Kwargs: {kwargs}")
-            print(f"Headers: {dict(request.headers)}\n")
 
             # Определяем тип просмотра и детали
             view_type = "расписания"
@@ -106,7 +126,6 @@ def notify_view(f):
                     f"↩️ Источник перехода: {referer}"
                 )
                 emoji = "👨‍🏫"
-                print(f"DEBUG: Teacher view detected - {teacher_name}")
             elif 'group' in path:
                 group_name = kwargs.get('group_name', '')
                 view_type = f"расписания группы"
@@ -135,9 +154,8 @@ def notify_view(f):
             if details:
                 message += f"\n{details}\n"
 
-            print(f"DEBUG: Sending message:\n{message}")
-            send_success = send_notification(message)
-            print(f"DEBUG: Message sent successfully: {send_success}")
+            # Отправляем в тему просмотров
+            send_notification(message, theme='visits')
 
         except Exception as e:
             print(f"Error in notification wrapper: {e}")
@@ -147,3 +165,132 @@ def notify_view(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def send_lesson_change_notification(action, group_name, weekday, time_slot, week_number, lesson_data,
+                                    old_lesson_data=None, editor_ip=None):
+    """Отправка уведомления об изменении расписания"""
+    days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+    day_name = days[weekday - 1] if 0 < weekday <= len(days) else f"День {weekday}"
+
+    week_str = f"Неделя {week_number}" if week_number else "Текущая неделя"
+
+    time_slots = [
+        '08:00-09:20', '09:30-10:50', '11:00-12:20', '12:40-14:00',
+        '14:10-15:30', '15:40-17:00', '17:10-18:30', '18:40-20:00'
+    ]
+    time_str = time_slots[time_slot - 1] if isinstance(time_slot, int) and 0 < time_slot <= len(time_slots) else str(
+        time_slot)
+
+    if action == 'create':
+        info = format_lesson_info(lesson_data)
+        message = (
+            f"➕ <b>Добавлена пара</b>\n\n"
+            f"📅 {week_str}\n"
+            f"👥 Группа: {group_name}\n"
+            f"📍 {day_name}, {time_str}\n\n"
+            f"📚 Предмет: {info['subject']}\n"
+            f"👨‍🏫 Преподаватель: {info['teacher']}\n"
+            f"🚪 Аудитория: {info['room']}\n"
+            f"📝 Тип: {info['type']}"
+        )
+        if info['subgroup']:
+            message += f"\n👥 Подгруппа: {info['subgroup']}"
+
+    elif action == 'update':
+        old = format_lesson_info(old_lesson_data)
+        new = format_lesson_info(lesson_data)
+
+        message = (
+            f"✏️ <b>Изменена пара</b>\n\n"
+            f"📅 {week_str}\n"
+            f"👥 Группа: {group_name}\n"
+            f"📍 {day_name}, {time_str}\n\n"
+        )
+
+        if old['subject'] != new['subject']:
+            message += f"📚 Предмет: {old['subject']} ➜ {new['subject']}\n"
+        if old['teacher'] != new['teacher']:
+            message += f"👨‍🏫 Преподаватель: {old['teacher']} ➜ {new['teacher']}\n"
+        if old['room'] != new['room']:
+            message += f"🚪 Аудитория: {old['room']} ➜ {new['room']}\n"
+        if old['type'] != new['type']:
+            message += f"📝 Тип: {old['type']} ➜ {new['type']}\n"
+        if old['subgroup'] != new['subgroup']:
+            message += f"👥 Подгруппа: {old['subgroup'] or 'общая'} ➜ {new['subgroup'] or 'общая'}"
+
+    elif action == 'delete':
+        info = format_lesson_info(lesson_data)
+        message = (
+            f"❌ <b>Удалена пара</b>\n\n"
+            f"📅 {week_str}\n"
+            f"👥 Группа: {group_name}\n"
+            f"📍 {day_name}, {time_str}\n\n"
+            f"📚 Предмет: {info['subject']}\n"
+            f"👨‍🏫 Преподаватель: {info['teacher']}\n"
+            f"🚪 Аудитория: {info['room']}\n"
+            f"📝 Тип: {info['type']}"
+        )
+        if info['subgroup']:
+            message += f"\n👥 Подгруппа: {info['subgroup']}"
+
+    if editor_ip:
+        message += f"\n\n🌐 IP редактора: {editor_ip}"
+    message += f"\n🕒 Время: {datetime.now().strftime('%H:%M:%S %d.%m.%Y')}"
+
+    # Отправляем в тему изменений
+    return send_notification(message, theme='changes')
+
+def notify_lesson_change(action='update'):
+    """Декоратор для отправки уведомлений об изменениях в расписании"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                data = request.get_json()
+                if not data:
+                    return f(*args, **kwargs)
+
+                group_name = data.get('group_name')
+                day = data.get('day')
+                time = data.get('time')
+                week = data.get('week')
+                lessons = data.get('lessons', [])
+                old_lessons = data.get('old_lessons', [])
+
+                # Получаем временной слот
+                time_slots = [
+                    '08:00', '09:30', '11:00',
+                    '12:40', '14:10', '15:40',
+                    '17:10', '18:40'
+                ]
+                time_slot = time_slots[time - 1] if 0 < time <= len(time_slots) else f"Пара {time}"
+
+                # Определяем тип операции
+                if not old_lessons and lessons:
+                    action = 'create'
+                elif not lessons and old_lessons:
+                    action = 'delete'
+                else:
+                    action = 'update'
+
+                # Отправляем уведомления
+                for i, lesson in enumerate(lessons or old_lessons):
+                    old_lesson = old_lessons[i] if i < len(old_lessons) and action == 'update' else None
+                    send_lesson_change_notification(
+                        action=action,
+                        group_name=group_name,
+                        weekday=day,
+                        time_slot=time_slot,
+                        week_number=week,
+                        lesson_data=lesson,
+                        old_lesson_data=old_lesson,
+                        editor_ip=get_client_ip()
+                    )
+
+            except Exception as e:
+                print(f"Error in notification wrapper: {e}")
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

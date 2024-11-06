@@ -1,12 +1,12 @@
 from flask import Flask, redirect, url_for
 from config.config import Config
 from flask_login import LoginManager, UserMixin
-from routes import timetable, auth, api
+from routes import timetable, auth, api, history
 import os
 import socket
 from routes.notifications import bp as notifications_bp
 from models.notifications import Notification, NotificationManager
-
+from routes.history import bp as history_bp
 
 from routes.auth import init_login_manager
 
@@ -37,6 +37,7 @@ def create_app():
     app.register_blueprint(timetable.bp)
     app.register_blueprint(auth.bp)
 
+    app.register_blueprint(history.bp)
 
 
     app.register_blueprint(api.bp)

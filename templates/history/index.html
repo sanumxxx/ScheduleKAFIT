@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">История изменений расписания</h1>
+            <form action="{{ url_for('history.clear_history') }}" method="POST"
+                  onsubmit="return confirm('Вы уверены, что хотите очистить всю историю?');">
+                <button type="submit"
+                        class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                    Очистить историю
+                </button>
+            </form>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="bg-white p-4 rounded shadow mb-6">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Группа</label>
+                    <select name="group" class="mt-1 block w-full rounded border-gray-300">
+                        <option value="">Все группы</option>
+                        {% for group in groups %}
+                            <option value="{{ group }}"
+                                    {% if filters.group == group %}selected{% endif %}>{{ group }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Неделя</label>
+                    <select name="week" class="mt-1 block w-full rounded border-gray-300">
+                        <option value="">Все недели</option>
+                        {% for week in weeks %}
+                            <option value="{{ week }}" {% if filters.week == week|string %}selected{% endif %}>
+                                Неделя {{ week }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Дата с</label>
+                    <input type="date" name="date_from" value="{{ filters.date_from }}"
+                           class="mt-1 block w-full rounded border-gray-300">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Дата по</label>
+                    <input type="date" name="date_to" value="{{ filters.date_to }}"
+                           class="mt-1 block w-full rounded border-gray-300">
+                </div>
+
+                <div class="md:col-span-4 flex justify-end">
+                    <button type="submit"
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                        Применить фильтры
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Таблица с историей -->
+        <div class="bg-white rounded shadow overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Дата/Время
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Группа
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        День/Время
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Изменения
+                    </th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for record in records %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ record.timestamp }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if record.type == 'create' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Создание
+                            </span>
+                            {% elif record.type == 'update' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Изменение
+                            </span>
+                            {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Удаление
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ record.group }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% set days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'] %}
+                            {% set time_slots = ['08:00-09:20', '09:30-10:50', '11:00-12:20', '12:40-14:00',
+                                           '14:10-15:30', '15:40-17:00', '17:10-18:30', '18:40-20:00'] %}
+                            {{ days[record.day - 1] }}<br>
+                            {{ time_slots[record.time - 1] }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-lg break-words">
+                                {% if record.type == 'create' and record.new_data %}
+                                    {% set lesson = record.new_data[0] %}
+                                    <span class="text-green-600 font-medium">Добавлена пара:</span><br>
+                                    {{ lesson.subject }}<br>
+                                    {% if lesson.teachers %}Преподаватель: {{ lesson.teachers[0] }}<br>{% endif %}
+                                    {% if lesson.auditories %}Аудитория: {{ lesson.auditories[0] }}<br>{% endif %}
+                                    {% if lesson.type %}Тип: {{ lesson.type }}<br>{% endif %}
+                                    {% if lesson.subgroup %}Подгруппа: {{ lesson.subgroup }}{% endif %}
+
+                                {% elif record.type == 'update' and record.old_data and record.new_data %}
+                                    {% set old = record.old_data[0] %}
+                                    {% set new = record.new_data[0] %}
+                                    <span class="text-yellow-600 font-medium">Изменения:</span><br>
+                                    {% if old.subject != new.subject %}
+                                        Предмет: {{ old.subject }} → {{ new.subject }}<br>
+                                    {% endif %}
+                                    {% if old.teachers[0] != new.teachers[0] %}
+                                        Преподаватель: {{ old.teachers[0] }} → {{ new.teachers[0] }}<br>
+                                    {% endif %}
+                                    {% if old.auditories[0] != new.auditories[0] %}
+                                        Аудитория: {{ old.auditories[0] }} → {{ new.auditories[0] }}<br>
+                                    {% endif %}
+                                    {% if old.type != new.type %}
+                                        Тип: {{ old.type }} → {{ new.type }}<br>
+                                    {% endif %}
+                                    {% if old.subgroup != new.subgroup %}
+                                        Подгруппа: {{ old.subgroup }} → {{ new.subgroup }}
+                                    {% endif %}
+                                {% elif record.type == 'delete' and record.old_data %}
+                                    {% set lesson = record.old_data[0] %}
+                                    <span class="text-red-600 font-medium">Удалена пара:</span><br>
+                                    {{ lesson.subject }}<br>
+                                    {% if lesson.teachers %}Преподаватель: {{ lesson.teachers[0] }}<br>{% endif %}
+                                    {% if lesson.auditories %}Аудитория: {{ lesson.auditories[0] }}<br>{% endif %}
+                                    {% if lesson.type %}Тип: {{ lesson.type }}<br>{% endif %}
+                                    {% if lesson.subgroup %}Подгруппа: {{ lesson.subgroup }}{% endif %}
+                                {% else %}
+                                    <span class="text-gray-500">Нет данных об изменениях</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% if not records %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            История изменений пуста
+                        </td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
