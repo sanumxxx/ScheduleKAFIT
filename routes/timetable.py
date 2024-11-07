@@ -1052,79 +1052,13 @@ def update_timetable():
 @bp.route('/search', methods=['GET', 'POST'])
 @notify_view
 def search_timetable():
-    """Поиск занятий по параметрам по всем неделям"""
-    print("\n=== Начало обработки search_timetable ===")
-
-    timetable_handler = TimetableHandler()
-    timetable_data = timetable_handler.read_timetable()
-
-    print(f"Тип timetable_data: {type(timetable_data)}")
-    if isinstance(timetable_data, list):
-        print(f"Длина timetable_data: {len(timetable_data)}")
-        if timetable_data:
-            print(
-                f"Структура первого элемента: {timetable_data[0].keys() if isinstance(timetable_data[0], dict) else 'не словарь'}")
-
-    # Получаем уникальные значения для выпадающих списков
+    """Поиск занятий по параметрам"""
+    # Инициализация начальных значений
     groups = set()
     subjects = set()
     lesson_types = {'л.', 'пр.', 'лаб.'}
-
-    # Для отображения общего диапазона дат
-    all_dates = []
-
-    def parse_date(date_str):
-        """Парсинг даты в разных форматах"""
-        formats = ['%d-%m-%Y', '%d.%m.%Y', '%Y-%m-%d']
-        for date_format in formats:
-            try:
-                return datetime.strptime(date_str, date_format)
-            except ValueError:
-                continue
-        return None
-
-    try:
-        if isinstance(timetable_data, list):
-            for data in timetable_data:
-                if isinstance(data, dict) and 'timetable' in data:
-                    for week in data['timetable']:
-                        print(f"\nОбработка недели: {week.get('week_number')}")
-
-                        # Обработка дат
-                        start_date = parse_date(week.get('date_start', ''))
-                        end_date = parse_date(week.get('date_end', ''))
-                        if start_date and end_date:
-                            all_dates.extend([start_date, end_date])
-
-                        # Сбор групп и предметов
-                        for group in week.get('groups', []):
-                            group_name = group.get('group_name')
-                            if group_name:
-                                print(f"Найдена группа: {group_name}")
-                                groups.add(group_name)
-
-                            for day in group.get('days', []):
-                                for lesson in day.get('lessons', []):
-                                    subject = lesson.get('subject')
-                                    if subject:
-
-                                        subjects.add(subject)
-
-    except Exception as e:
-        print(f"Ошибка при обработке данных: {e}")
-        import traceback
-        print(traceback.format_exc())
-
-
-
-    # Определяем общий диапазон дат
-    date_range = None
-    if all_dates:
-        min_date = min(all_dates).strftime('%d.%m.%Y')
-        max_date = max(all_dates).strftime('%d.%m.%Y')
-        date_range = f"с {min_date} по {max_date}"
-
     search_results = []
+    date_range = None
     search_params = {
         'group': None,
         'subject': None,
@@ -1132,46 +1066,73 @@ def search_timetable():
     }
 
     if request.method == 'POST':
+        # Загружаем данные только при POST-запросе
+        timetable_handler = TimetableHandler()
+        timetable_data = timetable_handler.read_timetable()
+        all_dates = []
+
+        # Получаем параметры поиска
         search_params = {
             'group': request.form.get('group'),
             'subject': request.form.get('subject'),
             'lesson_type': request.form.get('lesson_type')
         }
 
-        print(f"\nПараметры поиска: {search_params}")
-
         export_format = request.form.get('export_format')
 
-        # Поиск занятий по всем неделям
+        # Собираем уникальные значения и выполняем поиск
         if isinstance(timetable_data, list):
             for data in timetable_data:
-                if 'timetable' in data:
+                if isinstance(data, dict) and 'timetable' in data:
                     for week in data['timetable']:
+                        # Сбор дат для диапазона
+                        try:
+                            start_date = parse_date(week.get('date_start', ''))
+                            end_date = parse_date(week.get('date_end', ''))
+                            if start_date and end_date:
+                                all_dates.extend([start_date, end_date])
+                        except Exception as e:
+                            print(f"Ошибка обработки дат: {e}")
+                            continue
+
                         week_number = week.get('week_number')
                         date_start = week.get('date_start')
                         date_end = week.get('date_end')
 
-                        start_date = parse_date(date_start)
-                        if not start_date:
-                            continue
-
+                        # Обработка групп и поиск
                         for group_data in week.get('groups', []):
-                            if search_params['group'] and group_data.get('group_name') != search_params['group']:
+                            group_name = group_data.get('group_name')
+                            if group_name:
+                                groups.add(group_name)
+
+                            # Пропускаем, если группа не соответствует
+                            if search_params['group'] and group_name != search_params['group']:
                                 continue
 
                             for day in group_data.get('days', []):
                                 weekday = day.get('weekday')
                                 if weekday:
                                     for lesson in day.get('lessons', []):
+                                        # Сбор предметов
+                                        subject = lesson.get('subject')
+                                        if subject:
+                                            subjects.add(subject)
+
+                                        # Проверка соответствия критериям поиска
                                         if (search_params['subject'] and lesson.get('subject') != search_params[
                                             'subject']) or \
                                                 (search_params['lesson_type'] and lesson.get('type') != search_params[
                                                     'lesson_type']):
                                             continue
 
-                                        # Вычисляем дату занятия
+                                        # Получаем дату занятия
+                                        start_date = parse_date(date_start)
+                                        if not start_date:
+                                            continue
+
                                         lesson_date = start_date + timedelta(days=weekday - 1)
 
+                                        # Добавляем результат
                                         search_results.append({
                                             'date': lesson_date.strftime('%d.%m.%Y'),
                                             'weekday':
@@ -1181,14 +1142,20 @@ def search_timetable():
                                             'week_period': f"{date_start} - {date_end}",
                                             'time': f"Пара {lesson.get('time')}",
                                             'time_number': lesson.get('time'),
-                                            'group': group_data.get('group_name'),
+                                            'group': group_name,
                                             'subject': lesson.get('subject'),
                                             'type': lesson.get('type'),
                                             'teachers': [t.get('teacher_name') for t in lesson.get('teachers', [])],
                                             'auditories': [a.get('auditory_name') for a in lesson.get('auditories', [])]
                                         })
 
-        # Сортируем результаты по дате и времени пары
+        # Определяем диапазон дат
+        if all_dates:
+            min_date = min(all_dates).strftime('%d.%m.%Y')
+            max_date = max(all_dates).strftime('%d.%m.%Y')
+            date_range = f"с {min_date} по {max_date}"
+
+        # Сортируем результаты
         search_results.sort(key=lambda x: (
             datetime.strptime(x['date'], '%d.%m.%Y'),
             x['time_number']
@@ -1197,7 +1164,21 @@ def search_timetable():
         if export_format == 'excel' and search_results:
             return export_search_results(search_results, search_params)
 
-    print("\n=== Завершение обработки search_timetable ===")
+    # При GET-запросе загружаем только списки для выпадающих меню
+    if request.method == 'GET':
+        timetable_handler = TimetableHandler()
+        timetable_data = timetable_handler.read_timetable()
+
+        if isinstance(timetable_data, list):
+            for data in timetable_data:
+                if 'timetable' in data:
+                    for week in data['timetable']:
+                        for group in week.get('groups', []):
+                            groups.add(group.get('group_name'))
+                            for day in group.get('days', []):
+                                for lesson in day.get('lessons', []):
+                                    if lesson.get('subject'):
+                                        subjects.add(lesson.get('subject'))
 
     return render_template('timetable/search.html',
                            groups=sorted(list(filter(None, groups))),
@@ -1206,6 +1187,17 @@ def search_timetable():
                            search_results=search_results,
                            date_range=date_range,
                            search_params=search_params)
+
+
+def parse_date(date_str):
+    """Парсинг даты в разных форматах"""
+    formats = ['%d-%m-%Y', '%d.%m.%Y', '%Y-%m-%d']
+    for date_format in formats:
+        try:
+            return datetime.strptime(date_str, date_format)
+        except ValueError:
+            continue
+    return None
 
 
 def export_search_results(results):
