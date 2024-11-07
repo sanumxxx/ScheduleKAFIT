@@ -1049,6 +1049,230 @@ def update_timetable():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+@bp.route('/search', methods=['GET', 'POST'])
+@notify_view
+def search_timetable():
+    """Поиск занятий по параметрам по всем неделям"""
+    print("\n=== Начало обработки search_timetable ===")
+
+    timetable_handler = TimetableHandler()
+    timetable_data = timetable_handler.read_timetable()
+
+    print(f"Тип timetable_data: {type(timetable_data)}")
+    if isinstance(timetable_data, list):
+        print(f"Длина timetable_data: {len(timetable_data)}")
+        if timetable_data:
+            print(
+                f"Структура первого элемента: {timetable_data[0].keys() if isinstance(timetable_data[0], dict) else 'не словарь'}")
+
+    # Получаем уникальные значения для выпадающих списков
+    groups = set()
+    subjects = set()
+    lesson_types = {'л.', 'пр.', 'лаб.'}
+
+    # Для отображения общего диапазона дат
+    all_dates = []
+
+    def parse_date(date_str):
+        """Парсинг даты в разных форматах"""
+        formats = ['%d-%m-%Y', '%d.%m.%Y', '%Y-%m-%d']
+        for date_format in formats:
+            try:
+                return datetime.strptime(date_str, date_format)
+            except ValueError:
+                continue
+        return None
+
+    try:
+        if isinstance(timetable_data, list):
+            for data in timetable_data:
+                if isinstance(data, dict) and 'timetable' in data:
+                    for week in data['timetable']:
+                        print(f"\nОбработка недели: {week.get('week_number')}")
+
+                        # Обработка дат
+                        start_date = parse_date(week.get('date_start', ''))
+                        end_date = parse_date(week.get('date_end', ''))
+                        if start_date and end_date:
+                            all_dates.extend([start_date, end_date])
+
+                        # Сбор групп и предметов
+                        for group in week.get('groups', []):
+                            group_name = group.get('group_name')
+                            if group_name:
+                                print(f"Найдена группа: {group_name}")
+                                groups.add(group_name)
+
+                            for day in group.get('days', []):
+                                for lesson in day.get('lessons', []):
+                                    subject = lesson.get('subject')
+                                    if subject:
+
+                                        subjects.add(subject)
+
+    except Exception as e:
+        print(f"Ошибка при обработке данных: {e}")
+        import traceback
+        print(traceback.format_exc())
+
+
+
+    # Определяем общий диапазон дат
+    date_range = None
+    if all_dates:
+        min_date = min(all_dates).strftime('%d.%m.%Y')
+        max_date = max(all_dates).strftime('%d.%m.%Y')
+        date_range = f"с {min_date} по {max_date}"
+
+    search_results = []
+    search_params = {
+        'group': None,
+        'subject': None,
+        'lesson_type': None
+    }
+
+    if request.method == 'POST':
+        search_params = {
+            'group': request.form.get('group'),
+            'subject': request.form.get('subject'),
+            'lesson_type': request.form.get('lesson_type')
+        }
+
+        print(f"\nПараметры поиска: {search_params}")
+
+        export_format = request.form.get('export_format')
+
+        # Поиск занятий по всем неделям
+        if isinstance(timetable_data, list):
+            for data in timetable_data:
+                if 'timetable' in data:
+                    for week in data['timetable']:
+                        week_number = week.get('week_number')
+                        date_start = week.get('date_start')
+                        date_end = week.get('date_end')
+
+                        start_date = parse_date(date_start)
+                        if not start_date:
+                            continue
+
+                        for group_data in week.get('groups', []):
+                            if search_params['group'] and group_data.get('group_name') != search_params['group']:
+                                continue
+
+                            for day in group_data.get('days', []):
+                                weekday = day.get('weekday')
+                                if weekday:
+                                    for lesson in day.get('lessons', []):
+                                        if (search_params['subject'] and lesson.get('subject') != search_params[
+                                            'subject']) or \
+                                                (search_params['lesson_type'] and lesson.get('type') != search_params[
+                                                    'lesson_type']):
+                                            continue
+
+                                        # Вычисляем дату занятия
+                                        lesson_date = start_date + timedelta(days=weekday - 1)
+
+                                        search_results.append({
+                                            'date': lesson_date.strftime('%d.%m.%Y'),
+                                            'weekday':
+                                                ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][
+                                                    weekday - 1],
+                                            'week': week_number,
+                                            'week_period': f"{date_start} - {date_end}",
+                                            'time': f"Пара {lesson.get('time')}",
+                                            'time_number': lesson.get('time'),
+                                            'group': group_data.get('group_name'),
+                                            'subject': lesson.get('subject'),
+                                            'type': lesson.get('type'),
+                                            'teachers': [t.get('teacher_name') for t in lesson.get('teachers', [])],
+                                            'auditories': [a.get('auditory_name') for a in lesson.get('auditories', [])]
+                                        })
+
+        # Сортируем результаты по дате и времени пары
+        search_results.sort(key=lambda x: (
+            datetime.strptime(x['date'], '%d.%m.%Y'),
+            x['time_number']
+        ))
+
+        if export_format == 'excel' and search_results:
+            return export_search_results(search_results, search_params)
+
+    print("\n=== Завершение обработки search_timetable ===")
+
+    return render_template('timetable/search.html',
+                           groups=sorted(list(filter(None, groups))),
+                           subjects=sorted(list(filter(None, subjects))),
+                           lesson_types=sorted(list(lesson_types)),
+                           search_results=search_results,
+                           date_range=date_range,
+                           search_params=search_params)
+
+
+def export_search_results(results):
+    """Экспорт результатов поиска в Excel"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Результаты поиска"
+
+    # Заголовки
+    headers = [
+        'Дата', 'День недели', 'Номер недели', 'Период недели',
+        'Время', 'Группа', 'Дисциплина', 'Тип занятия',
+        'Преподаватели', 'Аудитории'
+    ]
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
+        cell.border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+    # Данные
+    for row, result in enumerate(results, 2):
+        ws.cell(row=row, column=1, value=result['date'])
+        ws.cell(row=row, column=2, value=result['weekday'])
+        ws.cell(row=row, column=3, value=f"Неделя {result['week']}")
+        ws.cell(row=row, column=4, value=result['week_period'])
+        ws.cell(row=row, column=5, value=result['time'])
+        ws.cell(row=row, column=6, value=result['group'])
+        ws.cell(row=row, column=7, value=result['subject'])
+        ws.cell(row=row, column=8, value=result['type'])
+        ws.cell(row=row, column=9, value=', '.join(result['teachers']))
+        ws.cell(row=row, column=10, value=', '.join(result['auditories']))
+
+    # Настройка ширины столбцов
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 15
+
+    # Применяем форматирование к данным
+    for row in range(2, len(results) + 2):
+        for col in range(1, len(headers) + 1):
+            cell = ws.cell(row=row, column=col)
+            cell.border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
+    # Создаем временный файл
+    with BytesIO() as excel_file:
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'search_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
+
 
 @bp.route('/teacher/<teacher_name>')
 @notify_view
