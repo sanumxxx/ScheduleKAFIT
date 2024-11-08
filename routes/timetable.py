@@ -1404,7 +1404,7 @@ def export_search_results(results):
     # Заголовки
     headers = [
         'Дата', 'День недели', 'Номер недели', 'Период недели',
-        'Время', 'Группа', 'Дисциплина', 'Тип занятия',
+        'Время', 'Группа', 'Дисциплина', 'Тип занятия', 'Подгруппа',
         'Преподаватели', 'Аудитории'
     ]
 
@@ -1430,8 +1430,9 @@ def export_search_results(results):
         ws.cell(row=row, column=6, value=result['group'])
         ws.cell(row=row, column=7, value=result['subject'])
         ws.cell(row=row, column=8, value=result['type'])
-        ws.cell(row=row, column=9, value=', '.join(result['teachers']))
-        ws.cell(row=row, column=10, value=', '.join(result['auditories']))
+        ws.cell(row=row, column=9, value=f"Подгруппа {result['subgroup']}" if result['subgroup'] > 0 else "Общее")
+        ws.cell(row=row, column=10, value=', '.join(result['teachers']))
+        ws.cell(row=row, column=11, value=', '.join(result['auditories']))
 
     # Настройка ширины столбцов
     for col in range(1, len(headers) + 1):

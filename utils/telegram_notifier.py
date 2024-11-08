@@ -53,10 +53,26 @@ def get_browser_info():
 
 def format_lesson_info(lesson):
     """Компактное форматирование информации о паре"""
+    # Получаем подробную информацию об аудиториях
+    rooms = []
+    for auditory in lesson.get('auditories', []):
+        if isinstance(auditory, dict):
+            room_name = auditory.get('auditory_name', '')
+            if room_name:
+                rooms.append(room_name)
+
+    # Получаем подробную информацию о преподавателях
+    teachers = []
+    for teacher in lesson.get('teachers', []):
+        if isinstance(teacher, dict):
+            teacher_name = teacher.get('teacher_name', '')
+            if teacher_name:
+                teachers.append(teacher_name)
+
     return {
         'subject': lesson.get('subject', ''),
-        'teacher': lesson.get('teachers', [{}])[0].get('teacher_name', ''),
-        'room': lesson.get('auditories', [{}])[0].get('auditory_name', ''),
+        'teacher': ', '.join(teachers) if teachers else '',
+        'room': ', '.join(rooms) if rooms else '',  # Объединяем все аудитории через запятую
         'type': lesson.get('type', ''),
         'subgroup': lesson.get('subgroup', 0)
     }
@@ -101,7 +117,6 @@ def send_notification(message, theme=None):
 
 def notify_view(f):
     """Декоратор для отправки уведомлений о просмотрах"""
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -134,7 +149,11 @@ def notify_view(f):
             elif 'room' in path:
                 room_name = kwargs.get('room_name', '')
                 view_type = f"расписания аудитории"
-                details = f"Аудитория: <b>{room_name}</b>"
+                details = (
+                    f"🚪 Аудитория: <b>ауд. {room_name}</b>\n"  # Добавлено "ауд." перед номером
+                    f"🔍 URL: {host}{path}\n"
+                    f"↩️ Источник перехода: {referer}"
+                )
                 emoji = "🚪"
             elif 'free_rooms' in path:
                 view_type = "списка свободных аудиторий"
