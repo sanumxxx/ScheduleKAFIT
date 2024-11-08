@@ -132,7 +132,7 @@ def notify_view(f):
             details = ""
             emoji = "👀"
 
-            if 'teacher' in path:
+            if '/timetable/teacher/' in path:
                 teacher_name = kwargs.get('teacher_name', '')
                 view_type = f"расписания преподавателя"
                 details = (
@@ -141,21 +141,21 @@ def notify_view(f):
                     f"↩️ Источник перехода: {referer}"
                 )
                 emoji = "👨‍🏫"
-            elif 'group' in path:
+            elif '/timetable/group/' in path:
                 group_name = kwargs.get('group_name', '')
                 view_type = f"расписания группы"
-                details = f"Группа: <b>{group_name}</b>"
+                details = f"👥 Группа: <b>{group_name}</b>"
                 emoji = "👥"
-            elif 'room' in path:
+            elif '/timetable/room/' in path:
                 room_name = kwargs.get('room_name', '')
                 view_type = f"расписания аудитории"
                 details = (
-                    f"🚪 Аудитория: <b>ауд. {room_name}</b>\n"  # Добавлено "ауд." перед номером
+                    f"🚪 Аудитория: <b>ауд. {room_name}</b>\n"
                     f"🔍 URL: {host}{path}\n"
                     f"↩️ Источник перехода: {referer}"
                 )
                 emoji = "🚪"
-            elif 'free_rooms' in path:
+            elif '/timetable/free_rooms' in path:
                 view_type = "списка свободных аудиторий"
                 emoji = "🔍"
 
