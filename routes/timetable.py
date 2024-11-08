@@ -1463,6 +1463,7 @@ def export_search_results(results):
 
 
 @bp.route('/teacher/<teacher_name>')
+@notify_view
 def teacher_timetable(teacher_name):
     """Просмотр расписания преподавателя"""
     timetable_data = timetable_handler.read_timetable()
@@ -1961,6 +1962,7 @@ def save_merged_data(data):
 
 
 @bp.route('/room/<room_name>')
+@notify_view
 def room_timetable(room_name):
     """Просмотр расписания аудитории"""
     timetable_data = timetable_handler.read_timetable()
