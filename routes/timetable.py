@@ -1961,6 +1961,155 @@ def save_merged_data(data):
         return False
 
 
+@bp.route('/teacher/<teacher_name>/workload')
+@notify_view
+def teacher_workload(teacher_name):
+    """Страница статистики загруженности преподавателя"""
+    timetable_data = timetable_handler.read_timetable()
+
+    workload_by_subject = {}  # Статистика по предметам
+    total_stats = {  # Общая статистика
+        'lectures': 0,
+        'practices': 0,
+        'labs': 0
+    }
+    group_details = {}  # Детали по группам
+
+    time_slots = [  # Расписание звонков для отображения времени пар
+        {'start': '08:00', 'end': '09:20'},
+        {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'},
+        {'start': '12:40', 'end': '14:00'},
+        {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'},
+        {'start': '17:10', 'end': '18:30'},
+        {'start': '18:40', 'end': '20:00'}
+    ]
+
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                # Сортируем недели по номеру
+                sorted_weeks = sorted(data['timetable'], key=lambda w: w.get('week_number', 0))
+
+                for week in sorted_weeks:
+                    week_number = week.get('week_number')
+                    week_dates = f"{week.get('date_start')} - {week.get('date_end')}"
+
+                    for group in week.get('groups', []):
+                        group_name = group.get('group_name')
+
+                        # Создаем структуры для групп если их еще нет
+                        if group_name not in group_details:
+                            group_details[group_name] = {
+                                'total_hours': 0,
+                                'lectures': 0,
+                                'practices': 0,
+                                'labs': 0,
+                                'schedule': [],  # Список всех занятий группы
+                                'subjects': set()  # Уникальные предметы группы
+                            }
+
+                        for day in group.get('days', []):
+                            weekday = day.get('weekday')
+                            weekday_name = ['Понедельник', 'Вторник', 'Среда',
+                                            'Четверг', 'Пятница', 'Суббота'][weekday - 1]
+
+                            for lesson in day.get('lessons', []):
+                                # Проверяем, ведёт ли преподаватель это занятие
+                                if any(teacher.get('teacher_name') == teacher_name
+                                       for teacher in lesson.get('teachers', [])):
+
+                                    subject = lesson.get('subject')
+                                    lesson_type = lesson.get('type')
+                                    time_index = lesson.get('time', 0)
+
+                                    # Получаем время начала и конца пары
+                                    time_info = time_slots[time_index - 1] if 0 < time_index <= len(
+                                        time_slots) else None
+                                    time_str = f"{time_info['start']} - {time_info['end']}" if time_info else f"Пара {time_index}"
+
+                                    # Добавляем информацию о занятии
+                                    lesson_info = {
+                                        'week': week_number,
+                                        'week_dates': week_dates,
+                                        'weekday': weekday_name,
+                                        'weekday_number': weekday,  # Для сортировки
+                                        'time_slot': time_index,
+                                        'time_str': time_str,
+                                        'subject': subject,
+                                        'type': lesson_type,
+                                        'subgroup': lesson.get('subgroup', 0),
+                                        'auditory': lesson.get('auditories', [{}])[0].get('auditory_name', '')
+                                    }
+
+                                    # Обновляем расписание группы
+                                    group_details[group_name]['schedule'].append(lesson_info)
+                                    group_details[group_name]['subjects'].add(subject)
+
+                                    # Обновляем счётчики для группы
+                                    group_details[group_name]['total_hours'] += 1.5
+                                    if lesson_type == 'л.':
+                                        group_details[group_name]['lectures'] += 1
+                                    elif lesson_type == 'пр.':
+                                        group_details[group_name]['practices'] += 1
+                                    elif lesson_type == 'лаб.':
+                                        group_details[group_name]['labs'] += 1
+
+                                    # Обновляем статистику по предметам
+                                    if subject not in workload_by_subject:
+                                        workload_by_subject[subject] = {
+                                            'groups': set(),
+                                            'lectures': 0,
+                                            'practices': 0,
+                                            'labs': 0,
+                                            'total_hours': 0
+                                        }
+
+                                    workload_by_subject[subject]['groups'].add(group_name)
+                                    workload_by_subject[subject]['total_hours'] += 1.5
+
+                                    if lesson_type == 'л.':
+                                        workload_by_subject[subject]['lectures'] += 1
+                                        total_stats['lectures'] += 1
+                                    elif lesson_type == 'пр.':
+                                        workload_by_subject[subject]['practices'] += 1
+                                        total_stats['practices'] += 1
+                                    elif lesson_type == 'лаб.':
+                                        workload_by_subject[subject]['labs'] += 1
+                                        total_stats['labs'] += 1
+
+    # Сортируем расписание для каждой группы
+    for group_data in group_details.values():
+        group_data['schedule'].sort(key=lambda x: (
+            x['week'],
+            x['weekday_number'],
+            x['time_slot']
+        ))
+        group_data['subjects'] = sorted(list(group_data['subjects']))
+
+    # Конвертируем множества групп в списки и сортируем
+    for subject_data in workload_by_subject.values():
+        subject_data['groups'] = sorted(list(subject_data['groups']))
+
+    # Считаем общее количество часов
+    total_hours = sum(subject_data['total_hours']
+                      for subject_data in workload_by_subject.values())
+
+    # Сортируем предметы по алфавиту
+    workload_by_subject = dict(sorted(workload_by_subject.items()))
+
+    return render_template(
+        'timetable/teacher_workload.html',
+        teacher_name=teacher_name,
+        workload_by_subject=workload_by_subject,
+        total_stats=total_stats,
+        total_hours=total_hours,
+        group_details=group_details,
+        time_slots=time_slots
+    )
+
+
 @bp.route('/room/<room_name>')
 @notify_view
 def room_timetable(room_name):

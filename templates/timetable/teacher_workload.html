@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Заголовок -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Загруженность преподавателя</h1>
+        <h2 class="text-xl text-gray-700">{{ teacher_name }}</h2>
+    </div>
+
+    <!-- Общая статистика -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Общие часы</h3>
+            <p class="text-3xl font-bold text-indigo-600">{{ total_hours }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Лекции</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ total_stats.lectures }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Практики</h3>
+            <p class="text-3xl font-bold text-green-600">{{ total_stats.practices }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Лабораторные</h3>
+            <p class="text-3xl font-bold text-purple-600">{{ total_stats.labs }}</p>
+        </div>
+    </div>
+
+    <!-- Аккордеон с дисциплинами -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        {% for subject, data in workload_by_subject.items() %}
+        <div class="border-b border-gray-200 last:border-b-0" x-data="{ open: false }">
+            <!-- Заголовок дисциплины -->
+            <button
+                class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 focus:outline-none"
+                @click="open = !open"
+            >
+                <div class="flex items-center space-x-4">
+                    <span class="font-medium text-gray-900">{{ subject }}</span>
+                    <span class="text-sm text-gray-500">({{ data.total_hours }} часов)</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                        <span>л: {{ data.lectures }}</span>
+                        <span>пр: {{ data.practices }}</span>
+                        <span>лаб: {{ data.labs }}</span>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-500 transform transition-transform"
+                         :class="{'rotate-180': open}"
+                         fill="none"
+                         stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </button>
+
+            <!-- Контент дисциплины: список групп -->
+            <div
+                x-show="open"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="bg-gray-50"
+            >
+                {% for group in data.groups %}
+                <div class="border-t border-gray-200" x-data="{ openSchedule: false }">
+                    <!-- Заголовок группы -->
+                    <button
+                        class="w-full px-8 py-3 flex items-center justify-between hover:bg-gray-100 focus:outline-none"
+                        @click="openSchedule = !openSchedule"
+                    >
+                        <span class="text-sm font-medium text-gray-900">{{ group }}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-500">
+                                {{ group_details[group].total_hours }} часов
+                            </span>
+                            <svg class="w-4 h-4 text-gray-500 transform transition-transform"
+                                 :class="{'rotate-180': openSchedule}"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 viewBox="0 0 24 24">
+                                <path stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </button>
+
+                    <!-- Расписание для группы -->
+                    <div
+                        x-show="openSchedule"
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0"
+                        x-transition:enter-end="opacity-100"
+                        x-transition:leave="transition ease-in duration-150"
+                        x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0"
+                        class="px-8 py-4 bg-white"
+                    >
+                        <div class="space-y-4">
+                            {% for lesson in group_details[group].schedule %}
+                            {% if lesson.subject == subject %}
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm font-medium">
+                                            Неделя {{ lesson.week }}
+                                        </span>
+                                        <span class="text-gray-500">•</span>
+                                        <span class="text-sm text-gray-700">
+                                            {{ lesson.weekday }}
+                                        </span>
+                                        <span class="text-gray-500">•</span>
+                                        <span class="text-sm text-gray-700">
+                                            {{ lesson.time_str }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                            {% if lesson.type == 'л.' %}
+                                                bg-blue-100 text-blue-800
+                                            {% elif lesson.type == 'пр.' %}
+                                                bg-green-100 text-green-800
+                                            {% else %}
+                                                bg-purple-100 text-purple-800
+                                            {% endif %}">
+                                            {{ lesson.type }}
+                                        </span>
+                                        {% if lesson.subgroup > 0 %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            Подгруппа {{ lesson.subgroup }}
+                                        </span>
+                                        {% endif %}
+                                        {% if lesson.auditory %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            ауд. {{ lesson.auditory }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Alpine.js для аккордеона -->
+<script src="//unpkg.com/alpinejs" defer></script>
+{% endblock %}

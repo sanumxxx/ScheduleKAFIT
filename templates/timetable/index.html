@@ -1,11 +1,9 @@
 {% extends "base.html" %}
 
-
-
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <!-- Поиск -->
-{% if is_admin %}
+    {% if is_admin %}
     <!-- Панель администратора -->
     <div class="mb-8 bg-white rounded-lg shadow-md">
         <div class="p-6">
@@ -117,7 +115,9 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {% for teacher in teachers %}
             <a href="{{ url_for('timetable.teacher_timetable', teacher_name=teacher) }}"
-               class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+               data-teacher="{{ teacher }}"
+               class="teacher-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
+               oncontextmenu="return false;">
                 <div class="text-lg font-semibold text-gray-700 text-center">{{ teacher }}</div>
             </a>
             {% endfor %}
@@ -135,6 +135,10 @@
         </div>
     </div>
 </div>
+
+<!-- Контекстное меню -->
+<!-- Добавьте это перед закрывающим тегом </body> -->
+<div id="teacherContextMenu" class="context-menu" style="display: none;"></div>
 
 <script>
 // Переключение вкладок
@@ -179,8 +183,132 @@ searchInput.addEventListener('input', (e) => {
     });
 });
 
-// Активируем первую вкладку по умолчанию
-document.querySelector('.tab-button[data-tab="groups"]').click();
+// Контекстное меню для преподавателей
+document.addEventListener('DOMContentLoaded', function() {
+    const contextMenu = document.getElementById('teacherContextMenu');
+
+    // Функция инициализации карточек преподавателей
+    function initTeacherCards() {
+    const teacherCards = document.querySelectorAll('.teacher-card');
+    let touchTimer;
+
+    teacherCards.forEach(card => {
+        const teacherName = card.getAttribute('data-teacher');
+
+        // Обработчик правого клика
+        card.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Используем clientX/Y вместо pageX/Y
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX;
+            const y = e.clientY;
+
+            showContextMenu(x, y, teacherName);
+        });
+
+        // Обработчик долгого нажатия для мобильных
+        card.addEventListener('touchstart', function(e) {
+            touchTimer = setTimeout(() => {
+                const touch = e.touches[0];
+                const rect = e.target.getBoundingClientRect();
+                const x = touch.clientX;
+                const y = touch.clientY;
+
+                showContextMenu(x, y, teacherName);
+            }, 500);
+        });
+
+        card.addEventListener('touchend', () => {
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+            }
+        });
+
+        card.addEventListener('touchmove', () => {
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+            }
+        });
+    });
+}
+
+    // Функция отображения контекстного меню
+    function showContextMenu(x, y, teacherName) {
+    console.log('Showing context menu for:', teacherName);
+
+    // Обновляем содержимое меню
+    contextMenu.innerHTML = `
+        <a href="/timetable/teacher/${teacherName}" class="context-menu-item">
+            <i class="fas fa-calendar"></i>
+            Расписание
+        </a>
+        <a href="/timetable/teacher/${teacherName}/workload" class="context-menu-item">
+            <i class="fas fa-chart-bar"></i>
+            Загруженность
+        </a>
+    `;
+
+    // Показываем меню, но делаем его невидимым для расчёта размеров
+    contextMenu.style.display = 'block';
+    contextMenu.style.opacity = '0';
+
+    // Получаем размеры окна и меню
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const menuWidth = contextMenu.offsetWidth;
+    const menuHeight = contextMenu.offsetHeight;
+
+    // Получаем позицию прокрутки
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+    // Рассчитываем позицию меню
+    let menuX = x + scrollLeft;
+    let menuY = y + scrollTop;
+
+    // Корректируем позицию, если меню выходит за пределы экрана
+    if (x + menuWidth > windowWidth) {
+        menuX = windowWidth - menuWidth;
+    }
+    if (y + menuHeight > windowHeight) {
+        menuY = y - menuHeight;
+    }
+
+    // Применяем позицию
+    contextMenu.style.left = `${menuX}px`;
+    contextMenu.style.top = `${menuY}px`;
+
+    // Делаем меню видимым и добавляем класс для анимации
+    contextMenu.style.opacity = '1';
+    requestAnimationFrame(() => {
+        contextMenu.classList.add('show');
+    });
+}
+
+    // Закрытие меню при клике вне его
+    document.addEventListener('click', function(e) {
+        if (contextMenu && !contextMenu.contains(e.target)) {
+            contextMenu.classList.remove('show');
+            setTimeout(() => {
+                contextMenu.style.display = 'none';
+            }, 150);
+        }
+    });
+
+    // Вызываем инициализацию при загрузке страницы
+    initTeacherCards();
+
+    // Инициализация при переключении вкладок
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            if (button.dataset.tab === 'teachers') {
+                setTimeout(initTeacherCards, 100);
+            }
+        });
+    });
+});
 </script>
 
 <style>
