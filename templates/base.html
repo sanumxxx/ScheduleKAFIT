@@ -280,7 +280,9 @@
     </style>
     {% block extra_styles %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="bg-gray-50 min-h-screen flex flex-col"
+      data-teacher-timetable-url="{{ url_for('timetable.teacher_timetable', teacher_name='') }}"
+      data-teacher-workload-url="{{ url_for('timetable.teacher_workload', teacher_name='') }}">
 <!-- Навигационная панель -->
 <nav class="bg-white shadow-lg">
     <div class="max-w-7xl mx-auto px-4">
@@ -754,7 +756,8 @@ document.addEventListener('DOMContentLoaded', function() {
             this.src = '/static/images/placeholder.png';
         });
     });
-
+    const teacherTimetableBaseUrl = document.body.dataset.teacherTimetableUrl;
+    const teacherWorkloadBaseUrl = document.body.dataset.teacherWorkloadUrl;
     // Создаем контекстное меню
     const contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
@@ -777,6 +780,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const menuWidth = contextMenu.offsetWidth;
             const menuHeight = contextMenu.offsetHeight;
 
+
+
             if (x + menuWidth > window.innerWidth) {
                 x = window.innerWidth - menuWidth;
             }
@@ -791,13 +796,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Обновляем содержимое меню
             contextMenu.innerHTML = `
-                <a href="{{ url_for('timetable.teacher_timetable', teacher_name='${teacherName}') }}"
-                   class="context-menu-item">
+                <a href="${teacherTimetableUrl}" class="context-menu-item">
                     <i class="fas fa-calendar"></i>
                     Расписание
                 </a>
-                <a href="{{ url_for('timetable.teacher_workload', teacher_name='${teacherName}') }}"
-                   class="context-menu-item">
+                <a href="${teacherWorkloadUrl}" class="context-menu-item">
                     <i class="fas fa-chart-bar"></i>
                     Загруженность
                 </a>
