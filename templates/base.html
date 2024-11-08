@@ -200,17 +200,17 @@
         }
 
         .context-menu {
-            position: fixed;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.375rem;
-            padding: 0.5rem 0;
-            min-width: 200px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            z-index: 1000;
-            display: none;
-            transform-origin: top left;
-        }
+    position: absolute; /* Меняем с fixed на absolute */
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0;
+    min-width: 200px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    display: none;
+    transform-origin: top left;
+}
 
         .context-menu.show {
             display: block;
@@ -248,22 +248,24 @@
             font-size: 1rem;
         }
 
-        @media (max-width: 640px) {
-            .context-menu {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                top: auto;
-                width: 100%;
-                border-radius: 1rem 1rem 0 0;
-                transform: translateY(100%);
-                transition: transform 0.3s ease-in-out;
-            }
+        /* Для мобильных устройств оставляем fixed */
+@media (max-width: 640px) {
+    .context-menu {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        width: 100%;
+        border-radius: 1rem 1rem 0 0;
+        transform: translateY(100%);
+        transition: transform 0.3s ease-in-out;
+    }
 
-            .context-menu.show {
-                transform: translateY(0);
-            }
+    .context-menu.show {
+        transform: translateY(0);
+    }
+
 
             .context-menu-item {
                 padding: 1rem;
@@ -769,31 +771,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Обработка правого клика
         card.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-            // Получаем координаты клика с учетом прокрутки
-            let x = e.clientX;
-            let y = e.clientY;
+    // Получаем координаты клика с учетом прокрутки
+    let x = e.clientX + window.scrollX;  // Добавляем scrollX
+    let y = e.clientY + window.scrollY;  // Добавляем scrollY
 
-            // Проверяем, не выходит ли меню за пределы экрана
-            const menuWidth = contextMenu.offsetWidth;
-            const menuHeight = contextMenu.offsetHeight;
+    const menuWidth = contextMenu.offsetWidth;
+    const menuHeight = contextMenu.offsetHeight;
 
+    if (x + menuWidth > window.innerWidth + window.scrollX) {
+        x = window.innerWidth + window.scrollX - menuWidth;
+    }
 
+    if (y + menuHeight > window.innerHeight + window.scrollY) {
+        y = window.innerHeight + window.scrollY - menuHeight;
+    }
 
-            if (x + menuWidth > window.innerWidth) {
-                x = window.innerWidth - menuWidth;
-            }
-
-            if (y + menuHeight > window.innerHeight) {
-                y = window.innerHeight - menuHeight;
-            }
-
-            // Устанавливаем позицию меню
-            contextMenu.style.left = x + 'px';
-            contextMenu.style.top = y + 'px';
-
+    contextMenu.style.left = x + 'px';
+    contextMenu.style.top = y + 'px';
             // Обновляем содержимое меню
             contextMenu.innerHTML = `
                 <a href="${teacherTimetableUrl}" class="context-menu-item">
@@ -816,19 +813,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         card.addEventListener('touchstart', function(e) {
             touchTimeout = setTimeout(() => {
-                const touch = e.touches[0];
-                let x = touch.clientX;let y = touch.clientY;
+    const touch = e.touches[0];
+    let x = touch.clientX + window.scrollX;  // Добавляем scrollX
+    let y = touch.clientY + window.scrollY;  // Добавляем scrollY
 
-            const menuWidth = contextMenu.offsetWidth;
-            const menuHeight = contextMenu.offsetHeight;
+    const menuWidth = contextMenu.offsetWidth;
+    const menuHeight = contextMenu.offsetHeight;
 
-            if (x + menuWidth > window.innerWidth) {
-                x = window.innerWidth - menuWidth;
-            }
+    if (x + menuWidth > window.innerWidth + window.scrollX) {
+        x = window.innerWidth + window.scrollX - menuWidth;
+    }
 
-            if (y + menuHeight > window.innerHeight) {
-                y = window.innerHeight - menuHeight;
-            }
+    if (y + menuHeight > window.innerHeight + window.scrollY) {
+        y = window.innerHeight + window.scrollY - menuHeight;
+    }
 
             contextMenu.style.left = x + 'px';
             contextMenu.style.top = y + 'px';
