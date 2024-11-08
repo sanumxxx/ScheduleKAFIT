@@ -142,6 +142,72 @@
             height: 20px;
             animation: spin 1s linear infinite;
         }
+
+        .timetable-wrapper {
+    position: relative;
+    overflow-x: auto;
+}
+
+.time-column {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: white;
+    width: 100px; /* Уменьшаем ширину, так как метка теперь будет снизу */
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.time-column::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to right, rgba(0,0,0,0.05), transparent);
+}
+
+.current-badge {
+    font-size: 0.65rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    background-color: #dcfce7;
+    color: #166534;
+    white-space: nowrap;
+}
+
+/* Фиксация заголовка при скролле */
+.header-cell {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 1;
+}
+
+.time-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    background-color: #f9fafb;
+}
+
+/* Добавляем минимальную ширину для таблицы */
+.timetable-wrapper table {
+    min-width: calc(100% + 120px); /* Учитываем ширину фиксированного столбца */
+}
+
+/* Задаем минимальную ширину для ячеек с днями недели */
+.day-column {
+    min-width: 200px; /* или другое подходящее значение */
+}
+
+.time-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
     </style>
     {% block extra_styles %}{% endblock %}
 </head>

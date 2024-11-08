@@ -1,26 +1,55 @@
 # routes/timetable.py
 import json
 import os
+# Стандартные библиотеки Python
+import json
+import os
 import pickle
 import tempfile
 import uuid
 from datetime import datetime, timedelta
-from functools import wraps
 from io import BytesIO
-from flask import send_file
-from flask import Blueprint, render_template, jsonify, request, redirect, url_for, session, json, flash, \
+
+# Flask и связанные расширения
+from flask import (
+    Blueprint,
+    Flask,
+    render_template,
+    jsonify,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash,
+    send_file,
     get_flashed_messages
-from flask.app import Flask
-from flask_login import login_required, current_user
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
-from openpyxl.utils import get_column_letter
-from transliterate import translit
+)
+from flask_login import login_required
 from werkzeug.utils import secure_filename
-from models.history import TimetableHistory
+
+# Excel-related imports
+from openpyxl import Workbook
+from openpyxl.styles import (
+    PatternFill,
+    Border,
+    Side,
+    Alignment,
+    Font
+)
+from openpyxl.utils import get_column_letter
+
+# Сторонние библиотеки
+from transliterate import translit
+
+# Локальные импорты
 from config.config import Config
+from models.history import TimetableHistory
 from services.json_handler import TimetableHandler
-from utils.telegram_notifier import notify_view, notify_lesson_change, get_client_ip, send_lesson_change_notification
+from utils.telegram_notifier import (
+    notify_view,
+    get_client_ip,
+    send_lesson_change_notification
+)
 from utils.decorators import admin_required
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 timetable_handler = TimetableHandler()
@@ -83,7 +112,33 @@ def index():
 
 
 def merge_weeks(weeks):
-    """Объединяет данные о неделях"""
+    """
+    Объединяет данные о неделях расписания из разных файлов в единый согласованный формат.
+
+    Функция обрабатывает списки недель, группируя их по номеру недели и объединяя данные о группах,
+    днях и занятиях. При объединении сохраняется уникальность записей и избегается дублирование данных.
+
+    Args:
+        weeks (list): Список словарей с данными о неделях. Каждая неделя должна содержать:
+            - week_number (int): Номер недели
+            - date_start (str): Дата начала недели
+            - date_end (str): Дата окончания недели
+            - groups (list): Список групп с их расписанием
+
+    Returns:
+        list: Список объединенных недель, где каждая неделя содержит:
+            - week_number: Номер недели
+            - date_start: Дата начала недели
+            - date_end: Дата окончания недели
+            - groups: Список всех групп с объединенным расписанием
+
+    Note:
+        - Функция сохраняет все уникальные занятия для каждой группы
+        - При совпадении времени и подгруппы занятия объединяются
+        - Ведется подробное логирование процесса объединения
+    """
+
+
     print("\n=== Начало объединения недель ===")
 
     merged_result = []
@@ -167,7 +222,22 @@ def merge_weeks(weeks):
 
 
 def save_temp_data(data):
-    """Сохранение данных во временный файл"""
+    """
+    Сохраняет временные данные в файл с уникальным идентификатором.
+
+    Создает временный файл с использованием UUID для хранения данных при обработке
+    конфликтов или промежуточных результатов работы системы.
+
+    Args:
+        data (any): Данные для сохранения во временный файл (будут сериализованы через pickle)
+
+    Returns:
+        str: Уникальный идентификатор (UUID) сохраненных данных
+
+    Note:
+        Файл создается в системной временной директории с префиксом 'timetable_temp_'
+    """
+
     temp_id = str(uuid.uuid4())
     temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
 
@@ -178,7 +248,20 @@ def save_temp_data(data):
 
 
 def load_temp_data(temp_id):
-    """Загрузка данных из временного файла"""
+    """
+    Загружает данные из временного файла по его идентификатору.
+
+    Args:
+        temp_id (str): Уникальный идентификатор временного файла
+
+    Returns:
+        any: Десериализованные данные из временного файла или None, если файл не найден
+
+    Note:
+        Осуществляет поиск файла в системной временной директории
+        Возвращает None, если файл не существует или возникла ошибка при чтении
+    """
+
     temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
 
     if os.path.exists(temp_path):
@@ -189,7 +272,19 @@ def load_temp_data(temp_id):
 
 
 def remove_temp_data(temp_id):
-    """Удаление временного файла"""
+    """
+    Удаляет временный файл по его идентификатору.
+
+    Очищает временные данные после их использования для освобождения системных ресурсов.
+
+    Args:
+        temp_id (str): Уникальный идентификатор временного файла
+
+    Note:
+        Проверяет существование файла перед удалением
+        Безопасно игнорирует отсутствие файла
+    """
+
     temp_path = os.path.join(tempfile.gettempdir(), f'timetable_temp_{temp_id}.pkl')
     if os.path.exists(temp_path):
         os.remove(temp_path)
@@ -817,7 +912,26 @@ def save_lesson():
 
 
 def get_unique_values(timetable_data):
-    """Получение уникальных значений для выпадающих списков"""
+    """
+    Извлекает уникальные значения для различных параметров расписания.
+
+    Обрабатывает данные расписания и собирает уникальные значения для предметов,
+    преподавателей, аудиторий и типов занятий.
+
+    Args:
+        timetable_data (list): Список данных расписания
+
+    Returns:
+        dict: Словарь с уникальными значениями:
+            - subjects (list): Список уникальных предметов
+            - teachers (list): Список уникальных преподавателей
+            - auditories (list): Список уникальных аудиторий
+            - lesson_types (list): Список типов занятий
+
+    Note:
+        Все списки сортируются в алфавитном порядке
+        Пустые значения фильтруются
+    """
     subjects = set()
     teachers = set()
     auditories = set()
@@ -852,7 +966,24 @@ def get_group_timetable_json(group_name):
 
 
 def get_group_timetable(group_name, timetable_data, selected_week=None):
-    """Получение расписания конкретной группы на выбранную неделю"""
+    """
+    Получает расписание для конкретной группы на выбранную неделю.
+
+    Args:
+        group_name (str): Название группы
+        timetable_data (list): Данные расписания
+        selected_week (str, optional): Номер выбранной недели. По умолчанию None
+
+    Returns:
+        tuple: (week_info, group_info)
+            - week_info: Информация о неделе или None
+            - group_info: Информация о группе или None
+
+    Note:
+        Если неделя не указана, берется первая доступная неделя
+        Возвращает None, None если группа или неделя не найдены
+    """
+
     if isinstance(timetable_data, list) and len(timetable_data) > 0:
         # Получаем данные из первого элемента списка
         weeks_data = timetable_data[0].get('timetable', [])
@@ -872,7 +1003,24 @@ def get_group_timetable(group_name, timetable_data, selected_week=None):
 
 
 def get_lessons(timetable, day, time, group_name, selected_week=None):
-    """Получение занятий для конкретного дня и времени"""
+    """
+    Извлекает информацию о занятиях для конкретной группы, дня и времени.
+
+    Args:
+        timetable (list): Данные расписания
+        day (int): Номер дня недели (1-6)
+        time (int): Номер пары (1-8)
+        group_name (str): Название группы
+        selected_week (str, optional): Номер недели. По умолчанию None
+
+    Returns:
+        list или None: Список занятий, отсортированный по номеру подгруппы, или None если занятий нет
+
+    Note:
+        Занятия сортируются по номеру подгруппы (общие занятия идут первыми)
+        Обрабатывает ошибки и логирует их
+    """
+
     try:
         if isinstance(timetable, list):
             for data in timetable:
@@ -1059,10 +1207,16 @@ def search_timetable():
     lesson_types = {'л.', 'пр.', 'лаб.'}
     search_results = []
     date_range = None
+
+    # Обновленные параметры поиска
     search_params = {
-        'group': None,
-        'subject': None,
-        'lesson_type': None
+        'group': request.form.get('group', ''),
+        'subject': request.form.get('subject', ''),
+        'lesson_type': request.form.get('lesson_type', '')
+    } if request.method == 'POST' else {
+        'group': '',
+        'subject': '',
+        'lesson_type': ''
     }
 
     if request.method == 'POST':
@@ -1072,12 +1226,6 @@ def search_timetable():
         all_dates = []
 
         # Получаем параметры поиска
-        search_params = {
-            'group': request.form.get('group'),
-            'subject': request.form.get('subject'),
-            'lesson_type': request.form.get('lesson_type')
-        }
-
         export_format = request.form.get('export_format')
 
         # Собираем уникальные значения и выполняем поиск
@@ -1132,7 +1280,7 @@ def search_timetable():
 
                                         lesson_date = start_date + timedelta(days=weekday - 1)
 
-                                        # Добавляем результат
+                                        # Добавляем результат с подгруппой
                                         search_results.append({
                                             'date': lesson_date.strftime('%d.%m.%Y'),
                                             'weekday':
@@ -1145,6 +1293,7 @@ def search_timetable():
                                             'group': group_name,
                                             'subject': lesson.get('subject'),
                                             'type': lesson.get('type'),
+                                            'subgroup': lesson.get('subgroup', 0),  # Добавлено
                                             'teachers': [t.get('teacher_name') for t in lesson.get('teachers', [])],
                                             'auditories': [a.get('auditory_name') for a in lesson.get('auditories', [])]
                                         })
@@ -1158,11 +1307,13 @@ def search_timetable():
         # Сортируем результаты
         search_results.sort(key=lambda x: (
             datetime.strptime(x['date'], '%d.%m.%Y'),
-            x['time_number']
+            x['time_number'],
+            x['group'],  # Добавлена сортировка по группе
+            x['subgroup'] or 0  # Добавлена сортировка по подгруппе
         ))
 
         if export_format == 'excel' and search_results:
-            return export_search_results(search_results, search_params)
+            return export_search_results(search_results)
 
     # При GET-запросе загружаем только списки для выпадающих меню
     if request.method == 'GET':
@@ -1174,7 +1325,8 @@ def search_timetable():
                 if 'timetable' in data:
                     for week in data['timetable']:
                         for group in week.get('groups', []):
-                            groups.add(group.get('group_name'))
+                            if group.get('group_name'):
+                                groups.add(group.get('group_name'))
                             for day in group.get('days', []):
                                 for lesson in day.get('lessons', []):
                                     if lesson.get('subject'):
@@ -1190,7 +1342,23 @@ def search_timetable():
 
 
 def parse_date(date_str):
-    """Парсинг даты в разных форматах"""
+    """
+    Преобразует строку даты в объект datetime с поддержкой различных форматов.
+
+    Пытается разобрать дату в нескольких распространенных форматах.
+
+    Args:
+        date_str (str): Строка с датой в одном из поддерживаемых форматов
+
+    Returns:
+        datetime или None: Объект datetime если парсинг успешен, None если дата не распознана
+
+    Supported formats:
+        - DD-MM-YYYY
+        - DD.MM.YYYY
+        - YYYY-MM-DD
+    """
+
     formats = ['%d-%m-%Y', '%d.%m.%Y', '%Y-%m-%d']
     for date_format in formats:
         try:
@@ -1201,7 +1369,34 @@ def parse_date(date_str):
 
 
 def export_search_results(results):
-    """Экспорт результатов поиска в Excel"""
+    """
+    Экспортирует результаты поиска в Excel файл.
+
+    Создает форматированную Excel таблицу с результатами поиска по расписанию,
+    включая стилизацию и автоматическую настройку размеров.
+
+    Args:
+        results (list): Список результатов поиска, каждый элемент содержит:
+            - date: Дата занятия
+            - weekday: День недели
+            - week: Номер недели
+            - week_period: Период недели
+            - time: Время занятия
+            - group: Группа
+            - subject: Предмет
+            - type: Тип занятия
+            - teachers: Список преподавателей
+            - auditories: Список аудиторий
+
+    Returns:
+        flask.Response: Ответ с Excel файлом для скачивания
+
+    Note:
+        Создает временный файл в памяти
+        Применяет форматирование: шрифты, границы, выравнивание
+        Автоматически настраивает ширину столбцов
+    """
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Результаты поиска"
@@ -1267,7 +1462,6 @@ def export_search_results(results):
 
 
 @bp.route('/teacher/<teacher_name>')
-@notify_view
 def teacher_timetable(teacher_name):
     """Просмотр расписания преподавателя"""
     timetable_data = timetable_handler.read_timetable()
@@ -1305,6 +1499,20 @@ def teacher_timetable(teacher_name):
     ]
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+
+    # Получаем текущую дату и время
+    current_datetime = datetime.now()
+    current_time = current_datetime.strftime('%H:%M')
+    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+
+    # Определяем текущую пару
+    current_pair = None
+    for i, time_slot in enumerate(time_slots, 1):
+        start_time = datetime.strptime(time_slot['start'], '%H:%M').time()
+        end_time = datetime.strptime(time_slot['end'], '%H:%M').time()
+        if start_time <= current_datetime.time() <= end_time:
+            current_pair = i
+            break
 
     def get_teacher_lessons(timetable, day, time):
         """Получение занятий преподавателя для конкретного дня и времени"""
@@ -1358,8 +1566,29 @@ def teacher_timetable(teacher_name):
                            time_slots=time_slots,
                            day_names=day_names,
                            timetable=timetable_data,
-                           get_lessons=get_teacher_lessons)
+                           get_lessons=get_teacher_lessons,
+                           current_pair=current_pair,
+                           current_weekday=current_weekday)
 
+
+@bp.route('/api/subjects_by_group/<group_name>')
+def get_subjects_by_group(group_name):
+    """Получение списка предметов для конкретной группы"""
+    timetable_data = timetable_handler.read_timetable()
+    subjects = set()
+
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    for group in week.get('groups', []):
+                        if group.get('group_name') == group_name:
+                            for day in group.get('days', []):
+                                for lesson in day.get('lessons', []):
+                                    if lesson.get('subject'):
+                                        subjects.add(lesson.get('subject'))
+
+    return jsonify(sorted(list(subjects)))
 
 UPLOAD_FOLDER = 'data/uploads'
 MERGED_FILE = 'data/timetable.json'
@@ -1386,7 +1615,23 @@ def logout():
 
 
 def read_merged_file():
-    """Чтение данных из файла"""
+    """
+    Читает объединенный файл расписания с поддержкой различных кодировок.
+
+    Пытается прочитать JSON файл в различных кодировках и обрабатывает возможные ошибки.
+
+    Returns:
+        list: Список данных расписания или пустой список в случае ошибки
+
+    Supported encodings:
+        - windows-1251
+        - utf-8
+        - utf-8-sig
+
+    Note:
+        Обрабатывает ошибки декодирования и парсинга JSON
+        Логирует ошибки для отладки
+    """
     try:
         if os.path.exists(MERGED_FILE):
             encodings = ['windows-1251', 'utf-8', 'utf-8-sig']
@@ -1665,7 +1910,25 @@ def handle_error(e):
 
 
 def save_merged_data(data):
-    """Сохранение объединенных данных"""
+    """
+    Сохраняет объединенные данные расписания в файл.
+
+    Создает необходимые директории, объединяет недели и сохраняет данные
+    в файл с определенной кодировкой.
+
+    Args:
+        data (list): Список данных для сохранения
+
+    Returns:
+        bool: True если сохранение успешно, False в случае ошибки
+
+    Note:
+        Создает директории при необходимости
+        Объединяет недели перед сохранением
+        Использует кодировку windows-1251
+        Ведет подробное логирование процесса
+    """
+
     print("\n=== Начало сохранения данных ===")
     try:
         # Создаем папку, если её нет
@@ -1735,6 +1998,20 @@ def room_timetable(room_name):
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
+    # Получаем текущую дату и время
+    current_datetime = datetime.now()
+    current_time = current_datetime.strftime('%H:%M')
+    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+
+    # Определяем текущую пару
+    current_pair = None
+    for i, time_slot in enumerate(time_slots, 1):
+        start_time = datetime.strptime(time_slot['start'], '%H:%M').time()
+        end_time = datetime.strptime(time_slot['end'], '%H:%M').time()
+        if start_time <= current_datetime.time() <= end_time:
+            current_pair = i
+            break
+
     def get_room_lessons(timetable, day, time):
         """Получение занятий в аудитории для конкретного дня и времени"""
         lessons = []
@@ -1770,4 +2047,6 @@ def room_timetable(room_name):
                            time_slots=time_slots,
                            day_names=day_names,
                            timetable=timetable_data,
-                           get_lessons=get_room_lessons)
+                           get_lessons=get_room_lessons,
+                           current_pair=current_pair,
+                           current_weekday=current_weekday)
