@@ -6,7 +6,7 @@
     <title>{% block title %}Расписание занятий{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
+     <style>
         /* Стили для формы входа */
         #loginForm {
             position: absolute;
@@ -18,6 +18,22 @@
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
+
+        .action-button {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    z-index: 10;
+}
+
+.action-button:hover {
+    opacity: 1;
+}
+
+@media (min-width: 640px) {
+    .action-button {
+        display: none;
+    }
+}
 
         /* Стили для мобильного меню */
         .mobile-menu {
@@ -766,106 +782,131 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.appendChild(contextMenu);
 
     // Обработчик для всех карточек преподавателей
-    document.querySelectorAll('.teacher-card').forEach(card => {
+        document.querySelectorAll('.teacher-card').forEach(card => {
         const teacherName = card.getAttribute('data-teacher');
 
-        // Обработка правого клика
-        card.addEventListener('contextmenu', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
+        // Создаем кнопку с тремя точками
+        const actionButton = document.createElement('button');
+        actionButton.className = 'action-button absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100';
+        actionButton.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
 
-    // Получаем координаты клика с учетом прокрутки
-    let x = e.clientX + window.scrollX;  // Добавляем scrollX
-    let y = e.clientY + window.scrollY;  // Добавляем scrollY
+        // Добавляем кнопку в карточку
+        card.style.position = 'relative';
+        card.appendChild(actionButton);
 
-    const menuWidth = contextMenu.offsetWidth;
-    const menuHeight = contextMenu.offsetHeight;
+        // Обработчик для мобильных устройств - клик по кнопке
+        actionButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
 
-    if (x + menuWidth > window.innerWidth + window.scrollX) {
-        x = window.innerWidth + window.scrollX - menuWidth;
-    }
+            // Закрываем другие открытые меню
+            document.querySelectorAll('.context-menu.show').forEach(menu => {
+                if (menu !== contextMenu) {
+                    menu.classList.remove('show');
+                }
+            });
 
-    if (y + menuHeight > window.innerHeight + window.scrollY) {
-        y = window.innerHeight + window.scrollY - menuHeight;
-    }
-
-    contextMenu.style.left = x + 'px';
-    contextMenu.style.top = y + 'px';
             // Обновляем содержимое меню
             contextMenu.innerHTML = `
-                <a href="${teacherTimetableUrl}" class="context-menu-item">
-                    <i class="fas fa-calendar"></i>
-                    Расписание
-                </a>
-                <a href="${teacherWorkloadUrl}" class="context-menu-item">
-                    <i class="fas fa-chart-bar"></i>
-                    Загруженность
-                </a>
-            `;
+    <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+        <i class="fas fa-calendar"></i>
+        Расписание
+    </a>
+    <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+        <i class="fas fa-chart-bar"></i>
+        Загруженность
+    </a>
+`;
 
-            // Показываем меню
+            // Для мобильных устройств позиционируем меню внизу экрана
+            if (window.matchMedia('(max-width: 639px)').matches) {
+                contextMenu.style.left = '0';
+                contextMenu.style.right = '0';
+                contextMenu.style.bottom = '0';
+                contextMenu.style.top = 'auto';
+                showOverlay();
+            } else {
+                // Для десктопа позиционируем возле кнопки
+                const buttonRect = actionButton.getBoundingClientRect();
+                let x = buttonRect.right + window.scrollX;
+                let y = buttonRect.top + window.scrollY;
+
+                if (x + contextMenu.offsetWidth > window.innerWidth) {
+                    x = buttonRect.left - contextMenu.offsetWidth + window.scrollX;
+                }
+
+                contextMenu.style.left = `${x}px`;
+                contextMenu.style.top = `${y}px`;
+            }
+
             contextMenu.classList.add('show');
         });
 
-        // Обработка долгого нажатия для мобильных устройств
-        let touchTimeout;
-        const longPressDelay = 500;
+        // На десктопе также оставляем контекстное меню по правому клику
+        if (window.matchMedia('(min-width: 640px)').matches) {
+            card.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
 
-        card.addEventListener('touchstart', function(e) {
-            touchTimeout = setTimeout(() => {
-    const touch = e.touches[0];
-    let x = touch.clientX + window.scrollX;  // Добавляем scrollX
-    let y = touch.clientY + window.scrollY;  // Добавляем scrollY
+                let x = e.pageX;
+                let y = e.pageY;
 
-    const menuWidth = contextMenu.offsetWidth;
-    const menuHeight = contextMenu.offsetHeight;
+                const menuWidth = contextMenu.offsetWidth;
+                const menuHeight = contextMenu.offsetHeight;
 
-    if (x + menuWidth > window.innerWidth + window.scrollX) {
-        x = window.innerWidth + window.scrollX - menuWidth;
-    }
+                if (x + menuWidth > window.innerWidth + window.scrollX) {
+                    x = e.pageX - menuWidth;
+                }
 
-    if (y + menuHeight > window.innerHeight + window.scrollY) {
-        y = window.innerHeight + window.scrollY - menuHeight;
-    }
+                if (y + menuHeight > window.innerHeight + window.scrollY) {
+                    y = e.pageY - menuHeight;
+                }
 
-            contextMenu.style.left = x + 'px';
-            contextMenu.style.top = y + 'px';
+                contextMenu.style.left = `${x}px`;
+                contextMenu.style.top = `${y}px`;
 
-            contextMenu.innerHTML = `
-                <a href="{{ url_for('timetable.teacher_timetable', teacher_name='${teacherName}') }}"
-                   class="context-menu-item">
-                    <i class="fas fa-calendar"></i>
-                    Расписание
-                </a>
-                <a href="{{ url_for('timetable.teacher_workload', teacher_name='${teacherName}') }}"
-                   class="context-menu-item">
-                    <i class="fas fa-chart-bar"></i>
-                    Загруженность
-                </a>
-            `;
+                contextMenu.innerHTML = `
+    <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+        <i class="fas fa-calendar"></i>
+        Расписание
+    </a>
+    <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+        <i class="fas fa-chart-bar"></i>
+        Загруженность
+    </a>
+`;
 
-            contextMenu.classList.add('show');
-            e.preventDefault();
-        }, longPressDelay);
-    });
-
-    card.addEventListener('touchend', () => {
-        if (touchTimeout) {
-            clearTimeout(touchTimeout);
+                contextMenu.classList.add('show');
+            });
         }
     });
+ const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-40 hidden';
+    document.body.appendChild(overlay);
 
-    card.addEventListener('touchmove', () => {
-        if (touchTimeout) {
-            clearTimeout(touchTimeout);
-        }
-    });
-});
+    function showOverlay() {
+        overlay.classList.remove('hidden');
+        overlay.addEventListener('click', hideMenu);
+    }
 
-// Закрытие меню при клике вне его
-document.addEventListener('click', function(e) {
-    if (!contextMenu.contains(e.target)) {
+    function hideMenu() {
         contextMenu.classList.remove('show');
+        overlay.classList.add('hidden');
     }
-});});
-</script>
+
+    // Закрытие меню при клике вне его
+    document.addEventListener('click', function(e) {
+        const target = e.target;
+        if (!contextMenu.contains(target) &&
+            !target.closest('.action-button')) {
+            hideMenu();
+        }
+    });
+
+    // Закрытие меню при нажатии Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideMenu();
+        }
+    });
+});</script>
