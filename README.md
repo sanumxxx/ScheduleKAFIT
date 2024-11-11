@@ -1,6 +1,6 @@
 # 📅 Система управления расписанием занятий
 
-![Лицензия](https://img.shields.io/badge/license-MIT-blue.svg)
+![Лицензия](https://img.shields.io/badge/license-Proprietary-red.svg)
 ![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Flask Version](https://img.shields.io/badge/flask-2.0%2B-green)
 
