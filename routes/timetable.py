@@ -1197,6 +1197,107 @@ def update_timetable():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+def update_lessons(self, group_name, day, time, new_lessons):
+    """
+    Обновление занятий в расписании с учетом номера недели
+    """
+    try:
+        print("\n=== Начало обновления занятий ===")
+        print(f"Параметры: группа={group_name}, день={day}, время={time}")
+        print(f"Новые занятия: {json.dumps(new_lessons, ensure_ascii=False, indent=2)}")
+
+        # Читаем данные
+        data = self.read_timetable()
+        if not data or not isinstance(data, list):
+            print("Ошибка: неверный формат данных")
+            return False
+
+        # Создаем резервную копию
+        self._create_backup()
+
+        # Получаем номер недели из URL или параметров запроса
+        from flask import request
+        week_number = request.args.get('week')
+        if not week_number:
+            print("Ошибка: не указан номер недели")
+            return False
+
+        week_number = int(week_number)
+        print(f"Номер недели: {week_number}")
+
+        # Обновляем данные с учетом недели
+        found = False
+        timetable_data = data[0].get('timetable', [])
+
+        for week in timetable_data:
+            if week.get('week_number') != week_number:
+                continue
+
+            print(f"Обрабатываем неделю {week_number}")
+            for group in week.get('groups', []):
+                if group.get('group_name') != group_name:
+                    continue
+
+                print(f"Найдена группа {group_name}")
+                for day_data in group.get('days', []):
+                    if day_data.get('weekday') != day:
+                        continue
+
+                    print(f"Найден день {day}")
+                    # Сохраняем существующие занятия для других недель
+                    existing_lessons = day_data.get('lessons', [])
+                    other_weeks_lessons = [
+                        lesson for lesson in existing_lessons
+                        if lesson.get('time') == time and lesson.get('week', week_number) != week_number
+                    ]
+
+                    # Обновляем занятия для текущей недели
+                    current_week_lessons = [
+                        lesson for lesson in existing_lessons
+                        if lesson.get('time') != time or lesson.get('week', week_number) != week_number
+                    ]
+
+                    # Добавляем новые занятия с указанием недели
+                    if new_lessons:
+                        for lesson in new_lessons:
+                            lesson_copy = lesson.copy()
+                            lesson_copy['week'] = week_number
+                            current_week_lessons.append(lesson_copy)
+
+                    # Объединяем все занятия
+                    day_data['lessons'] = current_week_lessons + other_weeks_lessons
+
+                    # Сортируем занятия
+                    day_data['lessons'].sort(key=lambda x: (
+                        x.get('week', 0),
+                        x.get('time', 0),
+                        x.get('subgroup', 0)
+                    ))
+
+                    found = True
+                    print(f"Обновлено занятий: {len(new_lessons) if new_lessons else 0}")
+                    break
+                if found:
+                    break
+            if found:
+                break
+
+        if not found:
+            print("Ошибка: занятия не найдены")
+            return False
+
+        # Сохраняем обновленные данные
+        success = self.save_timetable(data)
+        print(f"Результат сохранения: {success}")
+        return success
+
+    except Exception as e:
+        print(f"Ошибка в update_lessons: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return False
+
+
 @bp.route('/search', methods=['GET', 'POST'])
 @notify_view
 def search_timetable():
@@ -2048,7 +2149,7 @@ def teacher_workload(teacher_name):
                                     group_details[group_name]['subjects'].add(subject)
 
                                     # Обновляем счётчики для группы
-                                    group_details[group_name]['total_hours'] += 1.5
+                                    group_details[group_name]['total_hours'] += 2
                                     if lesson_type == 'л.':
                                         group_details[group_name]['lectures'] += 1
                                     elif lesson_type == 'пр.':
