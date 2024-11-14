@@ -2168,7 +2168,7 @@ def teacher_workload(teacher_name):
                                         }
 
                                     workload_by_subject[subject]['groups'].add(group_name)
-                                    workload_by_subject[subject]['total_hours'] += 1.5
+                                    workload_by_subject[subject]['total_hours'] += 2
 
                                     if lesson_type == 'л.':
                                         workload_by_subject[subject]['lectures'] += 1
