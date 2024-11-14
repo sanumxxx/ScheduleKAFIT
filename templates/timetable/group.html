@@ -613,60 +613,68 @@
         }
 
         function deleteLesson() {
-            console.log('Удаление пары...', {
-                currentDay,
-                currentTime,
-                currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
-            });
+    console.log('Удаление пары...', {
+        currentDay,
+        currentTime,
+        currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
+    });
 
-            if (!currentDay || !currentTime) {
-                showNotification('Не удалось определить день или время пары', 'ERROR');
-                return;
-            }
+    if (!currentDay || !currentTime) {
+        showNotification('Не удалось определить день или время пары', 'ERROR');
+        return;
+    }
 
+    // Получаем текущую неделю из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentWeek = urlParams.get('week');
 
-            // Запрашиваем подтверждение
-            if (!confirm('Вы уверены, что хотите удалить эту пару?')) {
-                return;
-            }
+    if (!currentWeek) {
+        showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
+        return;
+    }
 
-            const requestData = {
-                group_name: '{{ group_name }}',
-                day: currentDay,
-                time: currentTime,
-                lessons: [] // Пустой массив для удаления
-            };
+    // Запрашиваем подтверждение
+    if (!confirm('Вы уверены, что хотите удалить эту пару?')) {
+        return;
+    }
 
-            console.log('Отправляемые данные для удаления:', requestData);
+    const requestData = {
+        group_name: '{{ group_name }}',
+        day: currentDay,
+        time: currentTime,
+        lessons: [] // Пустой массив для удаления
+    };
 
-            fetch('/timetable/api/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Ответ сервера:', data);
-                    if (data.status === 'success') {
-                        closeModal();
-                        window.location.reload();
-                    } else {
-                        console.error('Ошибка удаления:', data.error);
-                        alert('Ошибка удаления пары: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка запроса:', error);
-                    alert('Ошибка удаления пары: ' + error);
-                });
+    console.log('Отправляемые данные для удаления:', requestData);
+
+    fetch(`/timetable/api/update?week=${currentWeek}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Ответ сервера:', data);
+        if (data.status === 'success') {
+            showNotification('Пара успешно удалена', 'SUCCESS');
+            closeModal();
+            window.location.href = `?week=${currentWeek}`;
+        } else {
+            throw new Error(data.error || 'Ошибка удаления');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка запроса:', error);
+        showNotification('Ошибка удаления пары: ' + error.message, 'ERROR');
+    });
+}
 
 function saveLesson() {
     console.log('Сохранение...', {
