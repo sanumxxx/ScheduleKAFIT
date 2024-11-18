@@ -676,6 +676,63 @@
     });
 }
 
+function getCurrentWeek(weeks) {
+    const today = new Date();
+
+    for (const week of weeks) {
+        const [startDay, startMonth, startYear] = week.date_start.split('.').map(Number);
+        const [endDay, endMonth, endYear] = week.date_end.split('.').map(Number);
+
+        const startDate = new Date(startYear, startMonth - 1, startDay);
+        const endDate = new Date(endYear, endMonth - 1, endDay);
+
+        if (today >= startDate && today <= endDate) {
+            return week.week_number.toString();
+        }
+    }
+
+    // Если текущая дата не попадает ни в один диапазон, возвращаем ближайшую неделю
+    let closestWeek = weeks[0];
+    let minDiff = Math.abs(today - new Date(weeks[0].date_start.split('.').reverse().join('-')));
+
+    for (const week of weeks) {
+        const weekStartDate = new Date(week.date_start.split('.').reverse().join('-'));
+        const diff = Math.abs(today - weekStartDate);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closestWeek = week;
+        }
+    }
+
+    return closestWeek.week_number.toString();
+}
+
+function setSelectedWeek() {
+    const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
+    if (!weekSelect) return;
+
+    const urlWeek = getUrlParameter('week');
+    const weeks = Array.from(weekSelect.options).map(option => {
+        const match = option.text.match(/Неделя (\d+) \((\d{2}\.\d{2}\.\d{4}) - (\d{2}\.\d{2}\.\d{4})\)/);
+        return {
+            week_number: match[1],
+            date_start: match[2],
+            date_end: match[3]
+        };
+    });
+
+    if (!urlWeek) {
+        const currentWeek = getCurrentWeek(weeks);
+        weekSelect.value = currentWeek;
+        if (weekSelect.value !== currentWeek) {
+            weekSelect.selectedIndex = 0;
+        }
+        changeWeek(weekSelect.value);
+    } else {
+        weekSelect.value = urlWeek;
+    }
+}
+
 function saveLesson() {
     console.log('Сохранение...', {
         currentDay,

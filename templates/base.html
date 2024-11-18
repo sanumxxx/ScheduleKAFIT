@@ -9,14 +9,34 @@
      <style>
         /* Стили для формы входа */
         #loginForm {
-            position: absolute;
+            position: fixed;
+            bottom: 4rem;
             right: 1rem;
-            top: 4rem;
             background: white;
             min-width: 300px;
-            z-index: 50;
+            z-index: 1000;
             border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .admin-login-btn {
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .admin-login-btn:hover {
+            opacity: 1;
+        }
+         .login-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+         .login-overlay.active {
+            display: block;
         }
 
         .action-button {
@@ -347,12 +367,7 @@
                         <i class="fas fa-sign-out-alt mr-2"></i>Выйти
                     </a>
                 {% else %}
-                    <button id="loginBtn"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-sm focus-ring">
-                        <i class="fas fa-sign-in-alt mr-2"></i>
-                        <span class="hidden sm:inline">Вход для администратора</span>
-                        <span class="sm:hidden">Вход</span>
-                    </button>
+
                 {% endif %}
             </div>
         </div>
@@ -382,36 +397,7 @@
     </div>
 </nav>
 
-<!-- Форма входа (изначально скрыта) -->
-<div id="loginForm" class="hidden">
-    <form action="{{ url_for('auth.login') }}" method="post" class="p-4 space-y-4" id="adminLoginForm">
-        <div class="sr-only">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" autocomplete="username" value="admin">
-        </div>
 
-        <div>
-            <label for="adminPassword" class="block text-sm font-medium text-gray-700 mb-1">
-                Пароль администратора
-            </label>
-            <input type="password"
-                   name="password"
-                   id="adminPassword"
-                   placeholder="Введите пароль"
-                   autocomplete="current-password"
-                   class="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2"
-                   required>
-        </div>
-
-        <div class="flex justify-end">
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors focus-ring">
-                <span class="loader hidden mr-2"></span>
-                <span>Войти</span>
-            </button>
-        </div>
-    </form>
-</div>
 
 <!-- Контейнер для уведомлений об обновлениях -->
 <div id="updates-container"></div>
@@ -436,16 +422,55 @@
 </main>
 
 <!-- Футер -->
-<footer class="bg-white border-t border-gray-200 mt-auto">
-    <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-        <div class="text-center text-sm text-gray-500">
-            &copy; <script>document.write(new Date().getFullYear())</script> Расписание занятий. Все права защищены.
+ <footer class="bg-white border-t border-gray-200 mt-auto relative">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col items-center justify-center space-y-2">
+                <div class="text-sm text-gray-500">
+                    &copy; <script>document.write(new Date().getFullYear())</script> Расписание занятий. Все права защищены.
+                </div>
+                <div class="text-sm text-gray-500">
+                    Разработчик: <a href="https://t.me/honcharov_sans" class="underline">Гончаров Александр</a>
+                </div>
+                <!-- Кнопка входа для администратора -->
+                <button id="loginBtn" class="admin-login-btn text-xs text-gray-400 hover:text-gray-600 mt-2">
+                    <i class="fas fa-user-shield mr-1"></i>Вход для администратора
+                </button>
+            </div>
         </div>
-        <div class="text-center text-sm text-gray-500">
-             Разработчик: <a href="https://t.me/honcharov_sans" class="underline">Гончаров Александр</a>
-        </div>
+    </footer>
+
+    <!-- Оверлей для формы входа -->
+    <div class="login-overlay"></div>
+
+ <div id="loginForm" class="hidden">
+        <form action="{{ url_for('auth.login') }}" method="post" class="p-4 space-y-4" id="adminLoginForm">
+            <div class="sr-only">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" value="admin">
+            </div>
+
+            <div>
+                <label for="adminPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                    Пароль администратора
+                </label>
+                <input type="password"
+                       name="password"
+                       id="adminPassword"
+                       placeholder="Введите пароль"
+                       autocomplete="current-password"
+                       class="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2"
+                       required>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors focus-ring">
+                    <span class="loader hidden mr-2"></span>
+                    <span>Войти</span>
+                </button>
+            </div>
+        </form>
     </div>
-</footer>
 
 {% block extra_js %}{% endblock %}
 
@@ -595,13 +620,11 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
             isMobileMenuOpen = !isMobileMenuOpen;
             mobileMenu.classList.toggle('active');
-            // Изменяем иконку
             const icon = this.querySelector('i');
             icon.classList.toggle('fa-bars');
             icon.classList.toggle('fa-times');
         });
 
-        // Закрытие при клике вне меню
         document.addEventListener('click', function(e) {
             if (isMobileMenuOpen && !mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
                 mobileMenu.classList.remove('active');
@@ -612,7 +635,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Закрытие при клике на пункт меню
         mobileMenu.querySelectorAll('.mobile-menu-button').forEach(button => {
             button.addEventListener('click', () => {
                 mobileMenu.classList.remove('active');
@@ -623,7 +645,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Закрытие при ресайзе
         window.addEventListener('resize', () => {
             if (window.innerWidth >= 640 && isMobileMenuOpen) {
                 mobileMenu.classList.remove('active');
@@ -640,24 +661,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('loginBtn');
     const adminPassword = document.getElementById('adminPassword');
     const adminLoginForm = document.getElementById('adminLoginForm');
+    const overlay = document.querySelector('.login-overlay');
     let isFormVisible = false;
 
     function showLoginForm(e) {
         if (e) e.preventDefault();
         loginForm.classList.remove('hidden');
+        overlay.classList.add('active');
         adminPassword.focus();
         isFormVisible = true;
-
-        // Добавляем затемнение фона
         document.body.style.overflow = 'hidden';
     }
 
     function hideLoginForm() {
         loginForm.classList.add('hidden');
+        overlay.classList.remove('active');
         isFormVisible = false;
         adminPassword.value = '';
-
-        // Убираем затемнение фона
         document.body.style.overflow = '';
     }
 
@@ -673,35 +693,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Закрытие формы при клике вне её
-    document.addEventListener('click', function(e) {
-        if (isFormVisible && loginForm && !loginForm.contains(e.target) && e.target !== loginBtn) {
-            hideLoginForm();
-        }
-    });
+    if (overlay) {
+        overlay.addEventListener('click', hideLoginForm);
+    }
 
-    // Предотвращаем закрытие при клике на форму
     if (loginForm) {
         loginForm.addEventListener('click', function(e) {
             e.stopPropagation();
         });
     }
-
-    // Обработка клавиши Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            if (isFormVisible) {
-                hideLoginForm();
-            }
-            if (isMobileMenuOpen) {
-                mobileMenu.classList.remove('active');
-                isMobileMenuOpen = false;
-                const icon = mobileMenuBtn.querySelector('i');
-                icon.classList.add('fa-bars');
-                icon.classList.remove('fa-times');
-            }
-        }
-    });
 
     // Валидация и обработка формы входа
     if (adminLoginForm) {
@@ -711,7 +711,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 adminPassword.classList.add('border-red-500');
 
-                // Показываем сообщение об ошибке
                 const errorMsg = document.createElement('p');
                 errorMsg.className = 'text-red-500 text-sm mt-1';
                 errorMsg.textContent = 'Пожалуйста, введите пароль';
@@ -725,7 +724,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Показываем индикатор загрузки
             const loader = this.querySelector('.loader');
             const submitBtn = this.querySelector('button[type="submit"]');
             if (loader && submitBtn) {
@@ -774,51 +772,44 @@ document.addEventListener('DOMContentLoaded', function() {
             this.src = '/static/images/placeholder.png';
         });
     });
+
+    // Контекстное меню для карточек преподавателей
     const teacherTimetableBaseUrl = document.body.dataset.teacherTimetableUrl;
     const teacherWorkloadBaseUrl = document.body.dataset.teacherWorkloadUrl;
-    // Создаем контекстное меню
     const contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
     document.body.appendChild(contextMenu);
 
-    // Обработчик для всех карточек преподавателей
-        document.querySelectorAll('.teacher-card').forEach(card => {
+    document.querySelectorAll('.teacher-card').forEach(card => {
         const teacherName = card.getAttribute('data-teacher');
-
-        // Создаем кнопку с тремя точками
         const actionButton = document.createElement('button');
         actionButton.className = 'action-button absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100';
         actionButton.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
 
-        // Добавляем кнопку в карточку
         card.style.position = 'relative';
         card.appendChild(actionButton);
 
-        // Обработчик для мобильных устройств - клик по кнопке
         actionButton.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
 
-            // Закрываем другие открытые меню
             document.querySelectorAll('.context-menu.show').forEach(menu => {
                 if (menu !== contextMenu) {
                     menu.classList.remove('show');
                 }
             });
 
-            // Обновляем содержимое меню
             contextMenu.innerHTML = `
-    <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
-        <i class="fas fa-calendar"></i>
-        Расписание
-    </a>
-    <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
-        <i class="fas fa-chart-bar"></i>
-        Загруженность
-    </a>
-`;
+                <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}`)}" class="context-menu-item">
+                    <i class="fas fa-calendar"></i>
+                    Расписание
+                </a>
+                <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+                    <i class="fas fa-chart-bar"></i>
+                    Загруженность
+                </a>
+            `;
 
-            // Для мобильных устройств позиционируем меню внизу экрана
             if (window.matchMedia('(max-width: 639px)').matches) {
                 contextMenu.style.left = '0';
                 contextMenu.style.right = '0';
@@ -826,7 +817,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 contextMenu.style.top = 'auto';
                 showOverlay();
             } else {
-                // Для десктопа позиционируем возле кнопки
                 const buttonRect = actionButton.getBoundingClientRect();
                 let x = buttonRect.right + window.scrollX;
                 let y = buttonRect.top + window.scrollY;
@@ -842,7 +832,6 @@ document.addEventListener('DOMContentLoaded', function() {
             contextMenu.classList.add('show');
         });
 
-        // На десктопе также оставляем контекстное меню по правому клику
         if (window.matchMedia('(min-width: 640px)').matches) {
             card.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
@@ -866,46 +855,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 contextMenu.style.top = `${y}px`;
 
                 contextMenu.innerHTML = `
-    <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
-        <i class="fas fa-calendar"></i>
-        Расписание
-    </a>
-    <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
-        <i class="fas fa-chart-bar"></i>
-        Загруженность
-    </a>
-`;
+                    <a href="${teacherTimetableBaseUrl.replace('/teacher/', `/teacher/${teacherName}`)}" class="context-menu-item">
+                        <i class="fas fa-calendar"></i>
+                        Расписание
+                    </a>
+                    <a href="${teacherWorkloadBaseUrl.replace('/teacher/', `/teacher/${teacherName}/`)}" class="context-menu-item">
+                        <i class="fas fa-chart-bar"></i>
+                        Загруженность
+                    </a>
+                `;
 
                 contextMenu.classList.add('show');
             });
         }
     });
- const overlay = document.createElement('div');
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-40 hidden';
-    document.body.appendChild(overlay);
+
+    const menuOverlay = document.createElement('div');
+    menuOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-40 hidden';
+    document.body.appendChild(menuOverlay);
 
     function showOverlay() {
-        overlay.classList.remove('hidden');
-        overlay.addEventListener('click', hideMenu);
+        menuOverlay.classList.remove('hidden');
+        menuOverlay.addEventListener('click', hideMenu);
     }
 
     function hideMenu() {
         contextMenu.classList.remove('show');
-        overlay.classList.add('hidden');
+        menuOverlay.classList.add('hidden');
     }
 
-    // Закрытие меню при клике вне его
     document.addEventListener('click', function(e) {
         const target = e.target;
-        if (!contextMenu.contains(target) &&
-            !target.closest('.action-button')) {
+        if (!contextMenu.contains(target) && !target.closest('.action-button')) {
             hideMenu();
         }
     });
 
-    // Закрытие меню при нажатии Escape
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
+            if (isFormVisible) {
+                hideLoginForm();
+            }
+            if (isMobileMenuOpen) {
+                mobileMenu.classList.remove('active');
+                isMobileMenuOpen = false;
+                const icon = mobileMenuBtn.querySelector('i');
+                icon.classList.add('fa-bars');
+                icon.classList.remove('fa-times');
+            }
             hideMenu();
         }
     });

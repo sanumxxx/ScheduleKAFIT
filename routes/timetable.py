@@ -718,7 +718,6 @@ def export_excel(type, name):
 @bp.route('/group/<group_name>')
 @notify_view
 def group_timetable(group_name):
-    """Страница расписания группы"""
     timetable_data = timetable_handler.read_timetable()
     selected_week = request.args.get('week', None)
 
@@ -737,9 +736,26 @@ def group_timetable(group_name):
     # Сортируем недели по номеру
     weeks.sort(key=lambda x: x['week_number'])
 
-    # Если неделя не выбрана, берем первую
+    # Если неделя не выбрана, определяем текущую
     if not selected_week and weeks:
-        selected_week = str(weeks[0].get('week_number'))
+        current_date = datetime.now()
+        current_week_num = current_date.isocalendar()[1]
+
+        closest_week = weeks[0]
+        min_diff = abs(datetime.strptime(weeks[0]['date_start'], '%d-%m-%Y').isocalendar()[1] - current_week_num)
+
+        for week in weeks:
+            try:
+                week_start = datetime.strptime(week['date_start'], '%d-%m-%Y')
+                week_diff = abs(week_start.isocalendar()[1] - current_week_num)
+                if week_diff < min_diff:
+                    min_diff = week_diff
+                    closest_week = week
+            except ValueError:
+                continue
+
+        selected_week = str(closest_week['week_number'])
+        return redirect(url_for('timetable.group_timetable', group_name=group_name, week=selected_week))
 
     # Расписание звонков
     time_slots = [
@@ -758,7 +774,7 @@ def group_timetable(group_name):
     # Получаем текущую дату и время
     current_datetime = datetime.now()
     current_time = current_datetime.strftime('%H:%M')
-    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+    current_weekday = current_datetime.weekday() + 1
 
     # Определяем текущую пару
     current_pair = None
@@ -775,7 +791,6 @@ def group_timetable(group_name):
         week_data = next((week for week in weeks if str(week['week_number']) == str(selected_week)), None)
         if week_data and week_data.get('date_start'):
             try:
-                # Пробуем разные форматы даты
                 date_formats = ['%d.%m.%Y', '%d-%m-%Y', '%Y-%m-%d']
                 start_date = None
 
@@ -1619,16 +1634,12 @@ def export_search_results(results):
         )
 
 
-
-
 @bp.route('/teacher/<teacher_name>')
 @notify_view
 def teacher_timetable(teacher_name):
-    """Просмотр расписания преподавателя"""
     timetable_data = timetable_handler.read_timetable()
     selected_week = request.args.get('week', None)
 
-    # Получаем список всех недель
     weeks = []
     if isinstance(timetable_data, list):
         for timetable_item in timetable_data:
@@ -1640,14 +1651,32 @@ def teacher_timetable(teacher_name):
                         'date_end': week_data.get('date_end')
                     })
 
-    # Сортируем недели по номеру
     weeks.sort(key=lambda x: x['week_number'])
 
-    # Если неделя не выбрана, берем первую
     if not selected_week and weeks:
-        selected_week = str(weeks[0].get('week_number'))
+        current_date = datetime.now()
+        current_week_num = current_date.isocalendar()[1]
 
-    # Расписание звонков
+        closest_week = weeks[0]
+        min_diff = float('inf')
+
+        for week in weeks:
+            try:
+                try:
+                    week_start = datetime.strptime(week['date_start'], '%d.%m.%Y')
+                except ValueError:
+                    week_start = datetime.strptime(week['date_start'], '%d-%m-%Y')
+
+                week_diff = abs(week_start.isocalendar()[1] - current_week_num)
+                if week_diff < min_diff:
+                    min_diff = week_diff
+                    closest_week = week
+            except ValueError:
+                continue
+
+        selected_week = str(closest_week['week_number'])
+        return redirect(url_for('timetable.teacher_timetable', teacher_name=teacher_name, week=selected_week))
+
     time_slots = [
         {'start': '08:00', 'end': '09:20'},
         {'start': '09:30', 'end': '10:50'},
@@ -1661,12 +1690,10 @@ def teacher_timetable(teacher_name):
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
-    # Получаем текущую дату и время
     current_datetime = datetime.now()
     current_time = current_datetime.strftime('%H:%M')
-    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+    current_weekday = current_datetime.weekday() + 1
 
-    # Определяем текущую пару
     current_pair = None
     for i, time_slot in enumerate(time_slots, 1):
         start_time = datetime.strptime(time_slot['start'], '%H:%M').time()
@@ -1676,8 +1703,7 @@ def teacher_timetable(teacher_name):
             break
 
     def get_teacher_lessons(timetable, day, time):
-        """Получение занятий преподавателя для конкретного дня и времени"""
-        lessons_by_type = {}  # Словарь для группировки занятий по типу и предмету
+        lessons_by_type = {}
 
         try:
             if isinstance(timetable, list):
@@ -1696,20 +1722,16 @@ def teacher_timetable(teacher_name):
                                                     any(teacher.get('teacher_name') == teacher_name
                                                         for teacher in lesson.get('teachers', []))):
 
-                                                # Создаем ключ для группировки
                                                 key = (lesson.get('subject'), lesson.get('type'),
                                                        lesson.get('auditories', [{}])[0].get('auditory_name'))
 
                                                 if key not in lessons_by_type:
-                                                    # Создаем новую запись с первой группой
                                                     lesson_copy = lesson.copy()
                                                     lesson_copy['groups'] = [group_name]
                                                     lessons_by_type[key] = lesson_copy
                                                 else:
-                                                    # Добавляем группу к существующей записи
                                                     lessons_by_type[key]['groups'].append(group_name)
 
-            # Преобразуем словарь в список и сортируем группы
             result = list(lessons_by_type.values())
             for lesson in result:
                 lesson['groups'].sort()
@@ -1729,7 +1751,8 @@ def teacher_timetable(teacher_name):
                            timetable=timetable_data,
                            get_lessons=get_teacher_lessons,
                            current_pair=current_pair,
-                           current_weekday=current_weekday)
+                           current_weekday=current_weekday,
+                           current_time=current_time)
 
 
 @bp.route('/api/subjects_by_group/<group_name>')
@@ -2272,11 +2295,9 @@ def teacher_workload(teacher_name):
 @bp.route('/room/<room_name>')
 @notify_view
 def room_timetable(room_name):
-    """Просмотр расписания аудитории"""
     timetable_data = timetable_handler.read_timetable()
     selected_week = request.args.get('week', None)
 
-    # Получаем список всех недель
     weeks = []
     if isinstance(timetable_data, list):
         for timetable_item in timetable_data:
@@ -2288,14 +2309,32 @@ def room_timetable(room_name):
                         'date_end': week_data.get('date_end')
                     })
 
-    # Сортируем недели по номеру
     weeks.sort(key=lambda x: x['week_number'])
 
-    # Если неделя не выбрана, берем первую
     if not selected_week and weeks:
-        selected_week = str(weeks[0].get('week_number'))
+        current_date = datetime.now()
+        current_week_num = current_date.isocalendar()[1]
 
-    # Расписание звонков
+        closest_week = weeks[0]
+        min_diff = float('inf')
+
+        for week in weeks:
+            try:
+                try:
+                    week_start = datetime.strptime(week['date_start'], '%d.%m.%Y')
+                except ValueError:
+                    week_start = datetime.strptime(week['date_start'], '%d-%m-%Y')
+
+                week_diff = abs(week_start.isocalendar()[1] - current_week_num)
+                if week_diff < min_diff:
+                    min_diff = week_diff
+                    closest_week = week
+            except ValueError:
+                continue
+
+        selected_week = str(closest_week['week_number'])
+        return redirect(url_for('timetable.room_timetable', room_name=room_name, week=selected_week))
+
     time_slots = [
         {'start': '08:00', 'end': '09:20'},
         {'start': '09:30', 'end': '10:50'},
@@ -2309,12 +2348,10 @@ def room_timetable(room_name):
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
-    # Получаем текущую дату и время
     current_datetime = datetime.now()
     current_time = current_datetime.strftime('%H:%M')
-    current_weekday = current_datetime.weekday() + 1  # +1 потому что у нас дни с 1
+    current_weekday = current_datetime.weekday() + 1
 
-    # Определяем текущую пару
     current_pair = None
     for i, time_slot in enumerate(time_slots, 1):
         start_time = datetime.strptime(time_slot['start'], '%H:%M').time()
@@ -2331,7 +2368,6 @@ def room_timetable(room_name):
                 for data in timetable:
                     if 'timetable' in data:
                         for week in data['timetable']:
-                            # Проверяем номер недели, если он указан
                             if selected_week and str(week.get('week_number')) != str(selected_week):
                                 continue
 
@@ -2342,7 +2378,6 @@ def room_timetable(room_name):
                                             if (lesson.get('time') == time and
                                                     any(auditory.get('auditory_name') == room_name
                                                         for auditory in lesson.get('auditories', []))):
-                                                # Добавляем информацию о группе к занятию
                                                 lesson_with_group = lesson.copy()
                                                 lesson_with_group['group_name'] = group.get('group_name')
                                                 lessons.append(lesson_with_group)
@@ -2360,4 +2395,5 @@ def room_timetable(room_name):
                            timetable=timetable_data,
                            get_lessons=get_room_lessons,
                            current_pair=current_pair,
-                           current_weekday=current_weekday)
+                           current_weekday=current_weekday,
+                           current_time=current_time)
