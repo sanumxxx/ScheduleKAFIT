@@ -40,6 +40,8 @@ def create_app():
     app.register_blueprint(history.bp)
 
 
+
+
     app.register_blueprint(api.bp)
 
     # Обработчики ошибок

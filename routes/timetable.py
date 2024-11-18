@@ -247,6 +247,15 @@ def save_temp_data(data):
 
     return temp_id
 
+@bp.route('/robots.txt')
+def robots_txt():
+    content = """User-agent: Yandex
+Disallow: /timetable
+
+User-agent: *
+Allow: /"""
+    return Response(content, mimetype='text/plain')
+
 
 def load_temp_data(temp_id):
     """
