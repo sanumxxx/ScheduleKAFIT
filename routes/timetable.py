@@ -1618,6 +1618,15 @@ def export_search_results(results):
         )
 
 
+@app.route('/robots.txt')
+def robots_txt():
+    content = """User-agent: Yandex
+Disallow: /timetable
+
+User-agent: *
+Allow: /"""
+    return Response(content, mimetype='text/plain')
+
 @bp.route('/teacher/<teacher_name>')
 @notify_view
 def teacher_timetable(teacher_name):
