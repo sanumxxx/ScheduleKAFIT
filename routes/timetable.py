@@ -22,8 +22,7 @@ from flask import (
     session,
     flash,
     send_file,
-    get_flashed_messages,
-    Response
+    get_flashed_messages
 )
 from flask_login import login_required
 from werkzeug.utils import secure_filename
@@ -53,20 +52,12 @@ from utils.telegram_notifier import (
 )
 from utils.decorators import admin_required
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
-root_bp = Blueprint('root', __name__)
+
 timetable_handler = TimetableHandler()
 app = Flask(__name__)
 
 app.config.from_object(Config)
 
-@root_bp.route('/robots.txt')
-def robots_txt():
-    content = """User-agent: Yandex
-Disallow: /timetable
-
-User-agent: *
-Allow: /"""
-    return Response(content, mimetype='text/plain')
 
 @bp.route('/')
 @notify_view

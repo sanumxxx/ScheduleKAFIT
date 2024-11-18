@@ -33,15 +33,20 @@ def create_app():
     def load_user(user_id):
         return User(user_id)
 
+    # Добавляем маршрут robots.txt
+    @app.route('/robots.txt')
+    def robots_txt():
+        content = """User-agent: Yandex
+Disallow: /timetable
+
+User-agent: *
+Allow: /"""
+        return app.response_class(content, mimetype='text/plain')
+
     # Регистрация blueprints
     app.register_blueprint(timetable.bp)
     app.register_blueprint(auth.bp)
-
     app.register_blueprint(history.bp)
-
-
-
-
     app.register_blueprint(api.bp)
 
     # Обработчики ошибок
@@ -57,7 +62,6 @@ def create_app():
     @app.route('/')
     def index():
         return redirect(url_for('timetable.index'))
-
 
     app.register_blueprint(notifications_bp)
 
