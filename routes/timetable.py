@@ -53,11 +53,20 @@ from utils.telegram_notifier import (
 )
 from utils.decorators import admin_required
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
+root_bp = Blueprint('root', __name__)
 timetable_handler = TimetableHandler()
 app = Flask(__name__)
 
 app.config.from_object(Config)
 
+@root_bp.route('/robots.txt')
+def robots_txt():
+    content = """User-agent: Yandex
+Disallow: /timetable
+
+User-agent: *
+Allow: /"""
+    return Response(content, mimetype='text/plain')
 
 @bp.route('/')
 @notify_view
@@ -246,15 +255,6 @@ def save_temp_data(data):
         pickle.dump(data, f)
 
     return temp_id
-
-@bp.route('/robots.txt')
-def robots_txt():
-    content = """User-agent: Yandex
-Disallow: /timetable
-
-User-agent: *
-Allow: /"""
-    return Response(content, mimetype='text/plain')
 
 
 def load_temp_data(temp_id):
@@ -1628,14 +1628,7 @@ def export_search_results(results):
         )
 
 
-@app.route('/robots.txt')
-def robots_txt():
-    content = """User-agent: Yandex
-Disallow: /timetable
 
-User-agent: *
-Allow: /"""
-    return Response(content, mimetype='text/plain')
 
 @bp.route('/teacher/<teacher_name>')
 @notify_view
