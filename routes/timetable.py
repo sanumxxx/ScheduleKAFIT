@@ -2362,7 +2362,9 @@ def room_timetable(room_name):
 
     def get_room_lessons(timetable, day, time):
         """Получение занятий в аудитории для конкретного дня и времени"""
-        lessons = []
+        all_lessons = []
+        lessons_by_type = {}
+
         try:
             if isinstance(timetable, list):
                 for data in timetable:
@@ -2372,16 +2374,34 @@ def room_timetable(room_name):
                                 continue
 
                             for group in week.get('groups', []):
+                                group_name = group.get('group_name')
                                 for day_data in group.get('days', []):
                                     if day_data.get('weekday') == day:
                                         for lesson in day_data.get('lessons', []):
                                             if (lesson.get('time') == time and
                                                     any(auditory.get('auditory_name') == room_name
                                                         for auditory in lesson.get('auditories', []))):
-                                                lesson_with_group = lesson.copy()
-                                                lesson_with_group['group_name'] = group.get('group_name')
-                                                lessons.append(lesson_with_group)
-            return lessons if lessons else None
+
+                                                # Создаем ключ для группировки идентичных занятий
+                                                key = (
+                                                    lesson.get('subject'),
+                                                    lesson.get('type'),
+                                                    str(lesson.get('teachers', [{}])[0].get('teacher_name', ''))
+                                                )
+
+                                                if key not in lessons_by_type:
+                                                    lesson_copy = lesson.copy()
+                                                    lesson_copy['groups'] = [group_name]
+                                                    lessons_by_type[key] = lesson_copy
+                                                else:
+                                                    lessons_by_type[key]['groups'].append(group_name)
+
+            result = list(lessons_by_type.values())
+            for lesson in result:
+                lesson['groups'].sort()
+
+            return result if result else None
+
         except Exception as e:
             print(f"Ошибка в get_room_lessons: {str(e)}")
             return None
