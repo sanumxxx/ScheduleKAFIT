@@ -739,235 +739,260 @@ function setSelectedWeek() {
 }
 
 function saveLesson() {
-    console.log('Сохранение...', {
-        currentDay,
-        currentTime,
-        currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
-    });
+   console.log('Сохранение...', {
+       currentDay,
+       currentTime,
+       currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
+   });
 
-    if (!currentDay || !currentTime) {
-        showNotification('Ошибка: не удалось определить день или время пары', 'ERROR');
-        return;
-    }
+   if (!currentDay || !currentTime) {
+       showNotification('Ошибка: не удалось определить день или время пары', 'ERROR');
+       return;
+   }
 
-    // Получаем текущую неделю из URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentWeek = urlParams.get('week');
+   // Получаем текущую неделю из URL
+   const urlParams = new URLSearchParams(window.location.search);
+   const currentWeek = urlParams.get('week');
 
-    if (!currentWeek) {
-        showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
-        return;
-    }
+   if (!currentWeek) {
+       showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
+       return;
+   }
 
-    // Получаем текущие данные занятия
-    const currentLessons = [];
-    const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
-    lessonDivs.forEach(div => {
-        try {
-            const lessonData = JSON.parse(div.dataset.lesson);
-            if (Array.isArray(lessonData)) {
-                currentLessons.push(...lessonData);
-            } else {
-                currentLessons.push(lessonData);
-            }
-        } catch (e) {
-            console.error('Ошибка при разборе текущих данных:', e);
-        }
-    });
+   // Получаем текущие данные занятия
+   const currentLessons = [];
+   const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
+   lessonDivs.forEach(div => {
+       try {
+           const lessonData = JSON.parse(div.dataset.lesson);
+           if (Array.isArray(lessonData)) {
+               currentLessons.push(...lessonData);
+           } else {
+               currentLessons.push(lessonData);
+           }
+       } catch (e) {
+           console.error('Ошибка при разборе текущих данных:', e);
+       }
+   });
 
-    // Получаем тип распределения
-    const groupType = document.querySelector('input[name="groupType"]:checked').value;
-    let newLessonData;
+   // Получаем тип распределения
+   const groupType = document.querySelector('input[name="groupType"]:checked').value;
+   let newLessonData;
 
-    try {
-        if (groupType === 'common') {
-            // Общее занятие
-            const subject = document.querySelector('select[name="subject"]').value;
-            const type = document.querySelector('#commonLessonType').value;
-            const teacher = document.querySelector('select[name="teacher"]').value;
-            const auditory = document.querySelector('select[name="auditory"]').value;
+   try {
+       if (groupType === 'common') {
+           // Общее занятие
+           const subject = document.querySelector('select[name="subject"]').value;
+           const type = document.querySelector('#commonLessonType').value;
+           const teacher = document.querySelector('select[name="teacher"]').value;
+           const auditory = document.querySelector('select[name="auditory"]').value;
 
-            if (!subject || !type || !teacher || !auditory) {
-                showNotification('Пожалуйста, заполните все поля', 'WARNING');
-                highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
-                return;
-            }
+           if (!subject || !type || !teacher || !auditory) {
+               showNotification('Пожалуйста, заполните все поля', 'WARNING');
+               highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
+               return;
+           }
 
-            newLessonData = [{
-                subject: subject,
-                type: type,
-                subgroup: 0,
-                time: currentTime,
-                teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-                auditories: [{auditory_name: auditory}],
-                Lesson_ID_Num: `${currentDay}_${currentTime}_0`,
-                week: parseInt(currentWeek)
-            }];
-        } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
-            // Занятие для одной подгруппы
-            const subgroup = groupType === 'subgroup1' ? 1 : 2;
-            const subject = document.querySelector('select[name="subject"]').value;
-            const type = document.querySelector('#commonLessonType').value;
-            const teacher = document.querySelector('select[name="teacher"]').value;
-            const auditory = document.querySelector('select[name="auditory"]').value;
+           newLessonData = [{
+               subject: subject,
+               type: type,
+               subgroup: 0,
+               time: currentTime,
+               teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
+               auditories: [{auditory_name: auditory}],
+               Lesson_ID_Num: `${currentDay}_${currentTime}_0`,
+               week: parseInt(currentWeek)
+           }];
+       } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
+           // Занятие для одной подгруппы
+           const subgroup = groupType === 'subgroup1' ? 1 : 2;
+           const subject = document.querySelector('select[name="subject"]').value;
+           const type = document.querySelector('#commonLessonType').value;
+           const teacher = document.querySelector('select[name="teacher"]').value;
+           const auditory = document.querySelector('select[name="auditory"]').value;
 
-            if (!subject || !type || !teacher || !auditory) {
-                showNotification('Пожалуйста, заполните все поля', 'WARNING');
-                highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
-                return;
-            }
+           if (!subject || !type || !teacher || !auditory) {
+               showNotification('Пожалуйста, заполните все поля', 'WARNING');
+               highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
+               return;
+           }
 
-            newLessonData = [{
-                subject: subject,
-                type: type,
-                subgroup: subgroup,
-                time: currentTime,
-                teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-                auditories: [{auditory_name: auditory}],
-                Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`,
-                week: parseInt(currentWeek)
-            }];
-        } else if (groupType === 'both') {
-            // Занятия для обеих подгрупп
-            const subject1 = document.querySelector('select[name="subject1"]').value;
-            const subject2 = document.querySelector('select[name="subject2"]').value;
-            const type1 = document.querySelector('select[name="lessonType1"]').value;
-            const type2 = document.querySelector('select[name="lessonType2"]').value;
-            const teacher1 = document.querySelector('select[name="teacher1"]').value;
-            const teacher2 = document.querySelector('select[name="teacher2"]').value;
-            const auditory1 = document.querySelector('select[name="auditory1"]').value;
-            const auditory2 = document.querySelector('select[name="auditory2"]').value;
+           newLessonData = [{
+               subject: subject,
+               type: type,
+               subgroup: subgroup,
+               time: currentTime,
+               teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
+               auditories: [{auditory_name: auditory}],
+               Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`,
+               week: parseInt(currentWeek)
+           }];
+       } else if (groupType === 'both') {
+           // Занятия для обеих подгрупп
+           const subject1 = document.querySelector('select[name="subject1"]').value;
+           const subject2 = document.querySelector('select[name="subject2"]').value;
+           const type1 = document.querySelector('select[name="lessonType1"]').value;
+           const type2 = document.querySelector('select[name="lessonType2"]').value;
+           const teacher1 = document.querySelector('select[name="teacher1"]').value;
+           const teacher2 = document.querySelector('select[name="teacher2"]').value;
+           const auditory1 = document.querySelector('select[name="auditory1"]').value;
+           const auditory2 = document.querySelector('select[name="auditory2"]').value;
 
-            if (!subject1 || !type1 || !teacher1 || !auditory1) {
-                showNotification('Пожалуйста, заполните все поля для первой подгруппы', 'WARNING');
-                highlightEmptyFields(['subject1', 'lessonType1', 'teacher1', 'auditory1']);
-                return;
-            }
+           if (!subject1 || !type1 || !teacher1 || !auditory1) {
+               showNotification('Пожалуйста, заполните все поля для первой подгруппы', 'WARNING');
+               highlightEmptyFields(['subject1', 'lessonType1', 'teacher1', 'auditory1']);
+               return;
+           }
 
-            if (!subject2 || !type2 || !teacher2 || !auditory2) {
-                showNotification('Пожалуйста, заполните все поля для второй подгруппы', 'WARNING');
-                highlightEmptyFields(['subject2', 'lessonType2', 'teacher2', 'auditory2']);
-                return;
-            }
+           if (!subject2 || !type2 || !teacher2 || !auditory2) {
+               showNotification('Пожалуйста, заполните все поля для второй подгруппы', 'WARNING');
+               highlightEmptyFields(['subject2', 'lessonType2', 'teacher2', 'auditory2']);
+               return;
+           }
 
-            newLessonData = [
-                {
-                    subject: subject1,
-                    type: type1,
-                    subgroup: 1,
-                    time: currentTime,
-                    teachers: [{teacher_name: teacher1, teacher_id: "1", teacher_post: ""}],
-                    auditories: [{auditory_name: auditory1}],
-                    Lesson_ID_Num: `${currentDay}_${currentTime}_1`,
-                    week: parseInt(currentWeek)
-                },
-                {
-                    subject: subject2,
-                    type: type2,
-                    subgroup: 2,
-                    time: currentTime,
-                    teachers: [{teacher_name: teacher2, teacher_id: "2", teacher_post: ""}],
-                    auditories: [{auditory_name: auditory2}],
-                    Lesson_ID_Num: `${currentDay}_${currentTime}_2`,
-                    week: parseInt(currentWeek)
-                }
-            ];
-        }
+           newLessonData = [
+               {
+                   subject: subject1,
+                   type: type1,
+                   subgroup: 1,
+                   time: currentTime,
+                   teachers: [{teacher_name: teacher1, teacher_id: "1", teacher_post: ""}],
+                   auditories: [{auditory_name: auditory1}],
+                   Lesson_ID_Num: `${currentDay}_${currentTime}_1`,
+                   week: parseInt(currentWeek)
+               },
+               {
+                   subject: subject2,
+                   type: type2,
+                   subgroup: 2,
+                   time: currentTime,
+                   teachers: [{teacher_name: teacher2, teacher_id: "2", teacher_post: ""}],
+                   auditories: [{auditory_name: auditory2}],
+                   Lesson_ID_Num: `${currentDay}_${currentTime}_2`,
+                   week: parseInt(currentWeek)
+               }
+           ];
+       }
 
-        // Логируем изменения
-        console.log('Текущее состояние:', currentLessons);
-        console.log('Новое состояние:', newLessonData);
+       // Логируем изменения
+       console.log('Текущее состояние:', currentLessons);
+       console.log('Новое состояние:', newLessonData);
 
-        // Показываем информацию об изменениях
-        let changes = '';
+       // Показываем информацию об изменениях
+       let changes = '';
 
-        if (currentLessons.length === 0 && newLessonData.length > 0) {
-            changes = 'Добавление новой пары:';
-            newLessonData.forEach(lesson => {
-                changes += `\n- ${lesson.subject} (${lesson.type})`;
-                if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
-                changes += `\n  Преподаватель: ${lesson.teachers[0].teacher_name}`;
-                changes += `\n  Аудитория: ${lesson.auditories[0].auditory_name}`;
-            });
-        } else if (currentLessons.length > 0 && newLessonData.length === 0) {
-            changes = 'Удаление пары:';
-            currentLessons.forEach(lesson => {
-                changes += `\n- ${lesson.subject} (${lesson.type})`;
-                if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
-            });
-        } else {
-            changes = 'Изменение пары:';
-            newLessonData.forEach((newLesson, index) => {
-                const oldLesson = currentLessons[index];
-                if (oldLesson) {
-                    changes += `\n\nПодгруппа ${newLesson.subgroup || 'общая'}:`;
-                    if (oldLesson.subject !== newLesson.subject) {
-                        changes += `\n- Предмет: ${oldLesson.subject} → ${newLesson.subject}`;
-                    }
-                    if (oldLesson.type !== newLesson.type) {
-                        changes += `\n- Тип: ${oldLesson.type} → ${newLesson.type}`;
-                    }
-                    if (oldLesson.teachers[0]?.teacher_name !== newLesson.teachers[0]?.teacher_name) {
-                        changes += `\n- Преподаватель: ${oldLesson.teachers[0]?.teacher_name} → ${newLesson.teachers[0]?.teacher_name}`;
-                    }
-                    if (oldLesson.auditories[0]?.auditory_name !== newLesson.auditories[0]?.auditory_name) {
-                        changes += `\n- Аудитория: ${oldLesson.auditories[0]?.auditory_name} → ${newLesson.auditories[0]?.auditory_name}`;
-                    }
-                } else {
-                    changes += `\n\nДобавлена подгруппа ${newLesson.subgroup}:`;
-                    changes += `\n- Предмет: ${newLesson.subject}`;
-                    changes += `\n- Тип: ${newLesson.type}`;
-                    changes += `\n- Преподаватель: ${newLesson.teachers[0]?.teacher_name}`;
-                    changes += `\n- Аудитория: ${newLesson.auditories[0]?.auditory_name}`;
-                }
-            });
-        }
+       if (currentLessons.length === 0 && newLessonData.length > 0) {
+           changes = 'Добавление новой пары:';
+           newLessonData.forEach(lesson => {
+               changes += `\n- ${lesson.subject} (${lesson.type})`;
+               if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
+               changes += `\n  Преподаватель: ${lesson.teachers[0].teacher_name}`;
+               changes += `\n  Аудитория: ${lesson.auditories[0].auditory_name}`;
+           });
+       } else if (currentLessons.length > 0 && newLessonData.length === 0) {
+           changes = 'Удаление пары:';
+           currentLessons.forEach(lesson => {
+               changes += `\n- ${lesson.subject} (${lesson.type})`;
+               if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
+           });
+       } else {
+           changes = 'Изменение пары:';
+           newLessonData.forEach((newLesson, index) => {
+               const oldLesson = currentLessons[index];
+               if (oldLesson) {
+                   changes += `\n\nПодгруппа ${newLesson.subgroup || 'общая'}:`;
+                   if (oldLesson.subject !== newLesson.subject) {
+                       changes += `\n- Предмет: ${oldLesson.subject} → ${newLesson.subject}`;
+                   }
+                   if (oldLesson.type !== newLesson.type) {
+                       changes += `\n- Тип: ${oldLesson.type} → ${newLesson.type}`;
+                   }
+                   if (oldLesson.teachers[0]?.teacher_name !== newLesson.teachers[0]?.teacher_name) {
+                       changes += `\n- Преподаватель: ${oldLesson.teachers[0]?.teacher_name} → ${newLesson.teachers[0]?.teacher_name}`;
+                   }
+                   if (oldLesson.auditories[0]?.auditory_name !== newLesson.auditories[0]?.auditory_name) {
+                       changes += `\n- Аудитория: ${oldLesson.auditories[0]?.auditory_name} → ${newLesson.auditories[0]?.auditory_name}`;
+                   }
+               } else {
+                   changes += `\n\nДобавлена подгруппа ${newLesson.subgroup}:`;
+                   changes += `\n- Предмет: ${newLesson.subject}`;
+                   changes += `\n- Тип: ${newLesson.type}`;
+                   changes += `\n- Преподаватель: ${newLesson.teachers[0]?.teacher_name}`;
+                   changes += `\n- Аудитория: ${newLesson.auditories[0]?.auditory_name}`;
+               }
+           });
+       }
 
-        console.log('Изменения:', changes);
-        showNotification(changes, 'INFO', 8000); // Увеличиваем время показа до 8 секунд
+       console.log('Изменения:', changes);
+       showNotification(changes, 'INFO', 8000);
 
-        const requestData = {
-            group_name: '{{ group_name }}',
-            day: currentDay,
-            time: currentTime,
-            lessons: newLessonData
-        };
+       const requestData = {
+           group_name: '{{ group_name }}',
+           day: currentDay,
+           time: currentTime,
+           lessons: newLessonData
+       };
 
-        console.log('Отправляемые данные:', requestData);
+       console.log('Отправляемые данные:', requestData);
 
-        fetch(`/timetable/api/update?week=${currentWeek}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Ответ сервера:', data);
-            if (data.status === 'success') {
-                showNotification('Изменения сохранены успешно', 'SUCCESS');
-                closeModal();
-                // Перезагружаем страницу с сохранением текущей недели
-                window.location.href = `?week=${currentWeek}`;
-            } else {
-                throw new Error(data.error || 'Ошибка сохранения');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка запроса:', error);
-            showNotification('Ошибка сохранения изменений: ' + error.message, 'ERROR');
-        });
+       fetch(`/timetable/api/update?week=${currentWeek}`, {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify(requestData)
+       })
+       .then(response => response.json())
+       .then(data => {
+           console.log('Ответ сервера:', data);
 
-    } catch (error) {
-        console.error('Ошибка при формировании данных:', error);
-        showNotification('Ошибка при формировании данных: ' + error.message, 'ERROR');
-    }
+           if (data.status === 'warning') {
+               // Показываем модальное окно с предупреждением о накладках
+               return new Promise((resolve, reject) => {
+                   const confirmation = confirm(
+                       `${data.message}\n\nВы уверены, что хотите сохранить расписание с накладками?`
+                   );
+
+                   if (confirmation) {
+                       // Если пользователь подтверждает, отправляем запрос повторно с флагом ignore_overlaps
+                       requestData.ignore_overlaps = true;
+                       return fetch(`/timetable/api/update?week=${currentWeek}`, {
+                           method: 'POST',
+                           headers: {
+                               'Content-Type': 'application/json',
+                           },
+                           body: JSON.stringify(requestData)
+                       }).then(response => response.json());
+                   } else {
+                       reject(new Error('Сохранение отменено пользователем'));
+                   }
+               });
+           }
+           return data;
+       })
+       .then(data => {
+           if (data.status === 'success') {
+               showNotification('Изменения сохранены успешно', 'SUCCESS');
+               closeModal();
+               // Перезагружаем страницу с сохранением текущей недели
+               window.location.href = `?week=${currentWeek}`;
+           } else {
+               throw new Error(data.error || 'Ошибка сохранения');
+           }
+       })
+       .catch(error => {
+           console.error('Ошибка запроса:', error);
+           if (error.message === 'Сохранение отменено пользователем') {
+               showNotification('Сохранение отменено', 'INFO');
+           } else {
+               showNotification('Ошибка сохранения изменений: ' + error.message, 'ERROR');
+           }
+       });
+
+   } catch (error) {
+       console.error('Ошибка при формировании данных:', error);
+       showNotification('Ошибка при формировании данных: ' + error.message, 'ERROR');
+   }
 }
 
 // Вспомогательная функция для подсветки пустых полей
