@@ -1,5 +1,26 @@
 {% extends "base.html" %}
+<style>
+    .lesson-block a {
+        transition: all 0.2s ease-in-out;
+        display: inline-block;
+    }
 
+    .lesson-block a:hover {
+        transform: translateY(-1px);
+        @apply text-indigo-600 underline;
+    }
+
+    .lesson-groups {
+        display: inline;
+    }
+
+    .lesson-groups a:not(:last-child):after {
+        content: ", ";
+        color: #6B7280;
+        text-decoration: none;
+        display: inline;
+    }
+</style>
 {% block content %}
     <div class="flex flex-col">
         <!-- Адаптивный заголовок -->
@@ -71,28 +92,43 @@
                                 {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
                                 {% if lessons %}
                                     {% for lesson in lessons %}
-                                        <div class="lesson-block {% if not loop.last %}mb-2{% endif %}">
-                                            <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
-                                            <div class="flex items-center gap-1 text-xs">
-                                <span class="px-2 py-0.5 rounded-full {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800{% elif lesson.type == 'пр.' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
-                                    {{ lesson.type }}
-                                </span>
-                                                {% if lesson.subgroup > 0 %}
-                                                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                                    Подгруппа {{ lesson.subgroup }}
-                                </span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-1">
-    {% for group in lesson.groups %}
-        {{ group }}{% if not loop.last %}, {% endif %}
-    {% endfor %}
-</div>
-                                            <div class="text-xs text-gray-500">
-                                                {{ lesson.teachers[0].teacher_name }}
-                                            </div>
+<div class="lesson-block {% if not loop.last %}mb-2{% endif %}">
+                                        <!-- Subject -->
+                                        <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
+
+                                        <!-- Lesson type and subgroup -->
+                                        <div class="flex items-center gap-1 text-xs">
+                                            <span class="px-2 py-0.5 rounded-full
+                                                {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
+                                                {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
+                                                {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                                {{ lesson.type }}
+                                            </span>
+                                            {% if lesson.subgroup > 0 %}
+                                                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                                    Подгруппа {{ lesson.subgroup }}
+                                                </span>
+                                            {% endif %}
                                         </div>
-                                    {% endfor %}
+
+                                        <!-- Groups with links -->
+                                        <div class="text-xs text-gray-500 mt-1 lesson-groups">
+                                            {% for group in lesson.groups %}
+                                                <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
+                                                   class="hover:text-indigo-600">
+                                                    {{ group }}
+                                                </a>
+                                            {% endfor %}
+                                        </div>
+
+                                        <!-- Teacher with link -->
+                                        <div class="text-xs text-gray-500">
+                                            <a href="{{ url_for('timetable.teacher_timetable', teacher_name=lesson.teachers[0].teacher_name) }}"
+                                               class="hover:text-indigo-600">
+                                                {{ lesson.teachers[0].teacher_name }}
+                                            </a>
+                                        </div>
+                                    </div>                                    {% endfor %}
                                 {% endif %}
                             </td>
                         {% endfor %}

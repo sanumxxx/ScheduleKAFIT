@@ -95,35 +95,40 @@
                             {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
                             {% if lessons %}
                                 {% for lesson in lessons %}
-                                    <div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
-                                         data-lesson='{{ lessons|tojson|safe }}'
-                                         data-subject="{{ lesson.subject }}"
-                                         data-type="{{ lesson.type }}"
-                                         data-subgroup="{{ lesson.subgroup }}"
-                                         data-teacher="{{ lesson.teachers[0].teacher_name }}"
-                                         data-auditory="{{ lesson.auditories[0].auditory_name }}">
-                                        <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
-                                        <div class="flex items-center gap-1 text-xs">
-                                            <span class="px-2 py-0.5 rounded-full
-                                                {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
-                                                {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
-                                                {% else %}bg-purple-100 text-purple-800{% endif %}">
-                                                {{ lesson.type }}
-                                            </span>
-                                            {% if lesson.subgroup > 0 %}
-                                                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                                                    Подгруппа {{ lesson.subgroup }}
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            {{ lesson.teachers[0].teacher_name }}
-                                        </div>
-                                        <div class="text-xs font-medium text-gray-700">
-                                            ауд. {{ lesson.auditories[0].auditory_name }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
+<div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
+     data-lesson='{{ lessons|tojson|safe }}'
+     data-subject="{{ lesson.subject }}"
+     data-type="{{ lesson.type }}"
+     data-subgroup="{{ lesson.subgroup }}"
+     data-teacher="{{ lesson.teachers[0].teacher_name }}"
+     data-auditory="{{ lesson.auditories[0].auditory_name }}">
+    <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
+    <div class="flex items-center gap-1 text-xs">
+        <span class="px-2 py-0.5 rounded-full
+            {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
+            {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
+            {% else %}bg-purple-100 text-purple-800{% endif %}">
+            {{ lesson.type }}
+        </span>
+        {% if lesson.subgroup > 0 %}
+            <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                Подгруппа {{ lesson.subgroup }}
+            </span>
+        {% endif %}
+    </div>
+    <div class="text-xs text-gray-500 mt-1">
+        <a href="{{ url_for('timetable.teacher_timetable', teacher_name=lesson.teachers[0].teacher_name) }}"
+           class="hover:text-indigo-600 transition-all duration-200">
+            {{ lesson.teachers[0].teacher_name }}
+        </a>
+    </div>
+    <div class="text-xs font-medium text-gray-700">
+        <a href="{{ url_for('timetable.room_timetable', room_name=lesson.auditories[0].auditory_name) }}"
+           class="hover:text-indigo-600 transition-all duration-200">
+            ауд. {{ lesson.auditories[0].auditory_name }}
+        </a>
+    </div>
+</div>                              {% endfor %}
                             {% endif %}
                         </td>
                     {% endfor %}
