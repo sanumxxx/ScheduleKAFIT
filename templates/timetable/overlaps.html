@@ -163,67 +163,122 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    function updateOverlapCounters() {
-        const visibleRoomOverlaps = document.querySelectorAll('.room-overlap:not(.hidden)').length;
-        const visibleTeacherOverlaps = document.querySelectorAll('.teacher-overlap').length;
+   function updateOverlapCounters() {
+       const visibleRoomOverlaps = document.querySelectorAll('.room-overlap:not(.hidden)').length;
+       const visibleTeacherOverlaps = document.querySelectorAll('.teacher-overlap:not(.hidden)').length;
 
-        document.getElementById('totalOverlaps').textContent = visibleRoomOverlaps + visibleTeacherOverlaps;
-        document.getElementById('roomOverlaps').textContent = visibleRoomOverlaps;
-        document.getElementById('teacherOverlaps').textContent = visibleTeacherOverlaps;
-    }
+       document.getElementById('totalOverlaps').textContent = visibleRoomOverlaps + visibleTeacherOverlaps;
+       document.getElementById('roomOverlaps').textContent = visibleRoomOverlaps;
+       document.getElementById('teacherOverlaps').textContent = visibleTeacherOverlaps;
+   }
 
-    async function addRoom(room) {
-        try {
-            const response = await fetch('/timetable/api/settings/ignored_rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'add', room: room })
-            });
+   let ignoredRooms = {{ settings.ignored_rooms|tojson|safe }};
 
-            if (response.ok) {
-                window.location.reload();
-            }
-        } catch (error) {
-            console.error('Error adding room:', error);
-            alert('Ошибка при добавлении аудитории');
+
+
+   function updateVisibility() {
+       document.querySelectorAll('.overlap-item').forEach(item => {
+           const roomName = item.dataset.room;
+           if (shouldHideRoom(roomName)) {
+               item.classList.add('hidden');
+           } else {
+               item.classList.remove('hidden');
+           }
+       });
+       updateOverlapCounters();
+   }
+
+   async function addRoom(room) {
+       try {
+           const response = await fetch('/timetable/api/settings/ignored_rooms', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ action: 'add', room: room })
+           });
+
+           if (response.ok) {
+               const roomsList = document.getElementById('ignoredRoomsList');
+               const newRoomDiv = document.createElement('div');
+               newRoomDiv.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-md';
+               newRoomDiv.innerHTML = `
+                   <span>${room}</span>
+                   <button onclick="removeRoom('${room}')" class="text-red-600 hover:text-red-800">
+                       <i class="fas fa-times"></i>
+                   </button>
+               `;
+               roomsList.appendChild(newRoomDiv);
+               ignoredRooms.push(room); // Добавляем в локальный список
+               updateVisibility();
+           }
+       } catch (error) {
+           console.error('Error adding room:', error);
+           alert('Ошибка при добавлении аудитории');
+       }
+   }
+
+   function shouldHideRoom(roomName) {
+    return ignoredRooms.some(pattern => {
+        if (pattern.endsWith('*')) {
+            const prefix = pattern.slice(0, -1); // Убираем *
+            return roomName.startsWith(prefix);
         }
-    }
+        return pattern === roomName;
+    });
+}
 
-    async function removeRoom(room) {
-        try {
-            const response = await fetch('/timetable/api/settings/ignored_rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'remove', room: room })
-            });
-
-            if (response.ok) {
-                window.location.reload();
-            }
-        } catch (error) {
-            console.error('Error removing room:', error);
-            alert('Ошибка при удалении аудитории');
-        }
-    }
-
-    const addRoomForm = document.getElementById('addRoomForm');
-    if (addRoomForm) {
-        addRoomForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const input = document.getElementById('newRoom');
-            const room = input.value.trim();
-
-            if (room) {
-                await addRoom(room);
-                input.value = '';
-            }
+async function removeRoom(room) {
+    try {
+        const response = await fetch('/timetable/api/settings/ignored_rooms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'remove', room: room })
         });
+
+        if (response.ok) {
+            document.querySelectorAll('#ignoredRoomsList > div').forEach(div => {
+                const spanText = div.querySelector('span').textContent;
+                if (spanText === room) {
+                    div.remove();
+                }
+            });
+
+            // Обновляем локальный список
+            ignoredRooms = ignoredRooms.filter(r => r !== room);
+
+            // Принудительно обновляем видимость
+            const overlaps = document.querySelectorAll('.overlap-item');
+            overlaps.forEach(item => {
+                const roomName = item.dataset.room;
+                if (shouldHideRoom(roomName)) {
+                    item.classList.add('hidden');
+                } else {
+                    item.classList.remove('hidden');
+                }
+            });
+
+            updateOverlapCounters();
+        }
+    } catch (error) {
+        console.error('Error removing room:', error);
+        alert('Ошибка при удалении аудитории');
     }
+}
 
-    // Делаем функцию removeRoom глобальной
-    window.removeRoom = removeRoom;
+   const addRoomForm = document.getElementById('addRoomForm');
+   if (addRoomForm) {
+       addRoomForm.addEventListener('submit', async function(e) {
+           e.preventDefault();
+           const input = document.getElementById('newRoom');
+           const room = input.value.trim();
 
-    updateOverlapCounters();
-});
-</script>
+           if (room) {
+               await addRoom(room);
+               input.value = '';
+           }
+       });
+   }
+
+   window.removeRoom = removeRoom;
+   updateVisibility();
+}); </script>
 {% endblock %}

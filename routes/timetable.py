@@ -148,16 +148,13 @@ def manage_ignored_rooms():
         return jsonify({'status': 'success'})
     return jsonify({'status': 'error', 'message': 'Failed to save settings'}), 500
 
+
 def find_all_overlaps(timetable_data):
     """Поиск всех существующих накладок в расписании"""
     overlaps = {
         'room_overlaps': [],  # Накладки по аудиториям (разные предметы в одной аудитории)
         'teacher_overlaps': []  # Накладки по преподавателям
     }
-
-    def is_virtual_room(room_name):
-        """Проверяет, является ли аудитория виртуальной"""
-        return room_name and room_name.startswith('25.')
 
     if isinstance(timetable_data, list):
         for data in timetable_data:
@@ -167,8 +164,9 @@ def find_all_overlaps(timetable_data):
                     date_start = week.get('date_start')
                     date_end = week.get('date_end')
 
+                    # Создаем временные словари для хранения занятий
                     room_lessons = {}  # key: (day, time, room) -> value: {subject: [lessons]}
-                    teacher_lessons = {}  # key: (day, time, teacher) -> value: [lessons]
+                    teacher_lessons = {}  # key: (day, time, teacher) -> value: {subject_room: [lessons]}
 
                     for group in week.get('groups', []):
                         group_name = group.get('group_name')
@@ -196,8 +194,7 @@ def find_all_overlaps(timetable_data):
                                 if auditories and isinstance(auditories, list):
                                     for auditory in auditories:
                                         room_name = auditory.get('auditory_name')
-                                        # Пропускаем виртуальные аудитории
-                                        if room_name and not is_virtual_room(room_name):
+                                        if room_name:
                                             room_key = (day_number, time, room_name)
                                             if room_key not in room_lessons:
                                                 room_lessons[room_key] = {}
@@ -216,21 +213,25 @@ def find_all_overlaps(timetable_data):
                                                 'subgroup': subgroup
                                             })
 
-                                # Проверка преподавателей (исключаем занятия в виртуальных аудиториях)
+                                # Проверка преподавателей
                                 teachers = lesson.get('teachers', [])
-                                auditories = lesson.get('auditories', [])
-                                room_name = auditories[0].get('auditory_name') if auditories else 'Нет аудитории'
-
-                                # Только если это не виртуальная аудитория
-                                if teachers and isinstance(teachers, list) and not is_virtual_room(room_name):
+                                if teachers and isinstance(teachers, list):
                                     for teacher in teachers:
                                         teacher_name = teacher.get('teacher_name')
                                         if teacher_name:
                                             teacher_key = (day_number, time, teacher_name)
                                             if teacher_key not in teacher_lessons:
-                                                teacher_lessons[teacher_key] = []
+                                                teacher_lessons[teacher_key] = {}
 
-                                            teacher_lessons[teacher_key].append({
+                                            # Создаем ключ из предмета и аудитории
+                                            room_name = auditories[0].get(
+                                                'auditory_name') if auditories else 'Нет аудитории'
+                                            subject_room_key = f"{subject}_{room_name}"
+
+                                            if subject_room_key not in teacher_lessons[teacher_key]:
+                                                teacher_lessons[teacher_key][subject_room_key] = []
+
+                                            teacher_lessons[teacher_key][subject_room_key].append({
                                                 'group': group_name,
                                                 'subject': subject,
                                                 'room': room_name,
@@ -257,8 +258,12 @@ def find_all_overlaps(timetable_data):
                             })
 
                     # Проверяем накладки по преподавателям
-                    for (day, time, teacher), lessons in teacher_lessons.items():
-                        if len(lessons) > 1:
+                    for (day, time, teacher), subject_rooms_dict in teacher_lessons.items():
+                        if len(subject_rooms_dict) > 1:  # Разные предметы или аудитории
+                            all_lessons = []
+                            for subject_room_lessons in subject_rooms_dict.values():
+                                all_lessons.extend(subject_room_lessons)
+
                             overlaps['teacher_overlaps'].append({
                                 'week': {
                                     'number': week_number,
@@ -268,7 +273,7 @@ def find_all_overlaps(timetable_data):
                                 'day': day,
                                 'time': time,
                                 'teacher': teacher,
-                                'lessons': lessons
+                                'lessons': all_lessons
                             })
 
     # Сортируем накладки
@@ -281,14 +286,8 @@ def find_all_overlaps(timetable_data):
 
     return overlaps
 
-
 def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_name=None):
     """Проверяет накладки в расписании"""
-
-    def is_virtual_room(room_name):
-        """Проверяет, является ли аудитория виртуальной"""
-        return room_name and room_name.startswith('25.')
-
     overlaps = {
         'room_overlaps': [],
         'teacher_overlaps': [],
@@ -300,7 +299,6 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
             if 'timetable' in data:
                 for week in data['timetable']:
                     if str(week.get('week_number')) == str(week_number):
-                        # Собираем все занятия в это время в этот день
                         existing_lessons = []
                         for group in week.get('groups', []):
                             if group_name and group.get('group_name') == group_name:
@@ -315,14 +313,9 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
                                                 'group': group.get('group_name')
                                             })
 
-                        # Проверяем накладки
                         for new_lesson in new_lessons:
                             auditories = new_lesson.get('auditories', [])
                             new_room = auditories[0].get('auditory_name') if auditories else None
-
-                            # Пропускаем проверку для виртуальных аудиторий
-                            if not new_room or is_virtual_room(new_room):
-                                continue
 
                             new_teachers = new_lesson.get('teachers', [])
                             new_teacher = new_teachers[0].get('teacher_name') if new_teachers else None
@@ -337,10 +330,6 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
                                 existing_auditories = existing_lesson.get('auditories', [])
                                 existing_room = existing_auditories[0].get(
                                     'auditory_name') if existing_auditories else None
-
-                                # Пропускаем проверку для виртуальных аудиторий
-                                if not existing_room or is_virtual_room(existing_room):
-                                    continue
 
                                 existing_teachers = existing_lesson.get('teachers', [])
                                 existing_teacher = existing_teachers[0].get(
@@ -373,8 +362,9 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
                                     overlaps['room_overlaps'].append(overlap)
                                     overlaps['total_count'] += 1
 
-                                # Проверка накладок по преподавателям
-                                if new_teacher == existing_teacher:
+                                # Проверка накладок по преподавателям (если разные предметы или разные аудитории)
+                                if new_teacher == existing_teacher and (
+                                        new_subject != existing_subject or new_room != existing_room):
                                     overlap = {
                                         'type': 'teacher',
                                         'teacher': new_teacher,
@@ -397,6 +387,7 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
                                     overlaps['total_count'] += 1
 
     return overlaps
+
 def merge_weeks(weeks):
     """
     Объединяет данные о неделях расписания из разных файлов в единый согласованный формат.
