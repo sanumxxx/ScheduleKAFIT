@@ -1114,7 +1114,27 @@ def free_rooms():
     """Поиск свободных аудиторий"""
     timetable_data = timetable_handler.read_timetable()
 
-    # Получаем список всех недель
+    # Get all rooms and extract buildings
+    all_rooms = set()
+    buildings = {'all': 'Все корпуса', 'other': 'Остальное'}
+
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week in data['timetable']:
+                    for group in week.get('groups', []):
+                        for day in group.get('days', []):
+                            for lesson in day.get('lessons', []):
+                                for auditory in lesson.get('auditories', []):
+                                    room = auditory.get('auditory_name')
+                                    if room:
+                                        all_rooms.add(room)
+                                        # Extract building number
+                                        if '.' in room:
+                                            building = room.split('.')[0]
+                                            if building.isdigit():
+                                                buildings[building] = f'Корпус {building}'
+
     weeks = []
     if isinstance(timetable_data, list):
         for data in timetable_data:
@@ -1127,32 +1147,19 @@ def free_rooms():
                     })
     weeks.sort(key=lambda x: x['week_number'])
 
-    # Получаем все аудитории в виде множества
-    all_rooms = set()
-    if isinstance(timetable_data, list):
-        for data in timetable_data:
-            if 'timetable' in data:
-                for week in data['timetable']:
-                    for group in week.get('groups', []):
-                        for day in group.get('days', []):
-                            for lesson in day.get('lessons', []):
-                                for auditory in lesson.get('auditories', []):
-                                    if auditory.get('auditory_name'):
-                                        all_rooms.add(auditory['auditory_name'])
-
-    # Если это POST-запрос, ищем свободные аудитории
     free_rooms = []
     selected_week = None
     selected_day = None
     selected_time = None
+    selected_building = None
 
     if request.method == 'POST':
         selected_week = request.form.get('week')
         selected_day = request.form.get('day')
         selected_time = request.form.get('time')
+        selected_building = request.form.get('building', 'all')
 
         if all([selected_week, selected_day, selected_time]):
-            # Находим занятые аудитории
             busy_rooms = set()
             for data in timetable_data:
                 if 'timetable' in data:
@@ -1167,10 +1174,16 @@ def free_rooms():
                                                     if auditory.get('auditory_name'):
                                                         busy_rooms.add(auditory['auditory_name'])
 
-            # Определяем свободные аудитории (разница множеств)
-            free_rooms = sorted(list(all_rooms - busy_rooms))
+            # Filter rooms by building
+            available_rooms = all_rooms - busy_rooms
+            if selected_building != 'all':
+                if selected_building == 'other':
+                    free_rooms = [room for room in available_rooms if not room.split('.')[0].isdigit()]
+                else:
+                    free_rooms = [room for room in available_rooms if room.startswith(f"{selected_building}.")]
+            else:
+                free_rooms = sorted(list(available_rooms))
 
-    # Расписание звонков
     time_slots = [
         {'start': '08:00', 'end': '09:20'},
         {'start': '09:30', 'end': '10:50'},
@@ -1192,7 +1205,9 @@ def free_rooms():
                            selected_week=selected_week,
                            selected_day=selected_day,
                            selected_time=selected_time,
-                           all_rooms=sorted(list(all_rooms)))  # Передаем также список всех аудиторий
+                           selected_building=selected_building,
+                           buildings=dict(sorted(buildings.items())),
+                           all_rooms=sorted(list(all_rooms)))
 
 
 @bp.route('/api/save_lesson', methods=['POST'])
