@@ -1,6 +1,4 @@
 # routes/timetable.py
-import json
-import os
 # Стандартные библиотеки Python
 import json
 import os
@@ -11,46 +9,24 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 # Flask и связанные расширения
-from flask import (
-    Blueprint,
-    Flask,
-    render_template,
-    jsonify,
-    request,
-    redirect,
-    url_for,
-    session,
-    flash,
-    send_file,
-    get_flashed_messages
-)
+from flask import (Blueprint, Flask, render_template, jsonify, request, redirect, url_for, session, flash, send_file,
+                   get_flashed_messages)
 from flask_login import login_required
-from werkzeug.utils import secure_filename
-
 # Excel-related imports
 from openpyxl import Workbook
-from openpyxl.styles import (
-    PatternFill,
-    Border,
-    Side,
-    Alignment,
-    Font
-)
+from openpyxl.styles import (PatternFill, Border, Side, Alignment, Font)
 from openpyxl.utils import get_column_letter
-
 # Сторонние библиотеки
 from transliterate import translit
+from werkzeug.utils import secure_filename
 
 # Локальные импорты
 from config.config import Config
 from models.history import TimetableHistory
 from services.json_handler import TimetableHandler, SettingsHandler
-from utils.telegram_notifier import (
-    notify_view,
-    get_client_ip,
-    send_lesson_change_notification
-)
 from utils.decorators import admin_required
+from utils.telegram_notifier import (notify_view, get_client_ip, send_lesson_change_notification)
+
 bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 
 timetable_handler = TimetableHandler()
@@ -59,6 +35,8 @@ app = Flask(__name__)
 app.config.from_object(Config)
 settings_handler = SettingsHandler()
 
+UPLOAD_FOLDER = 'data/uploads'
+MERGED_FILE = 'data/timetable.json'
 
 
 @bp.route('/')
@@ -73,11 +51,8 @@ def index():
         for data in timetable_data:
             if 'timetable' in data:
                 for week in data['timetable']:
-                    loaded_weeks.append({
-                        'week_number': week.get('week_number'),
-                        'date_start': week.get('date_start'),
-                        'date_end': week.get('date_end')
-                    })
+                    loaded_weeks.append({'week_number': week.get('week_number'), 'date_start': week.get('date_start'),
+                        'date_end': week.get('date_end')})
 
     # Сортируем недели по номеру
     loaded_weeks.sort(key=lambda x: x['week_number'])
@@ -105,13 +80,9 @@ def index():
                                     if auditory.get('auditory_name'):
                                         rooms.add(auditory['auditory_name'])
 
-    return render_template('timetable/index.html',
-                           is_admin=session.get('is_admin', False),
-                           loaded_weeks=loaded_weeks,
-                           flash_messages=get_flashed_messages(with_categories=True),
-                           groups=sorted(list(groups)),
-                           teachers=sorted(list(teachers)),
-                           rooms=sorted(list(rooms)))
+    return render_template('timetable/index.html', is_admin=session.get('is_admin', False), loaded_weeks=loaded_weeks,
+                           flash_messages=get_flashed_messages(with_categories=True), groups=sorted(list(groups)),
+                           teachers=sorted(list(teachers)), rooms=sorted(list(rooms)))
 
 
 @bp.route('/overlaps')
@@ -122,9 +93,7 @@ def show_overlaps():
     all_overlaps = find_all_overlaps(timetable_data)
     settings = settings_handler.read_settings()
 
-    return render_template('timetable/overlaps.html',
-                           overlaps=all_overlaps,
-                           settings=settings)
+    return render_template('timetable/overlaps.html', overlaps=all_overlaps, settings=settings)
 
 
 @bp.route('/api/settings/ignored_rooms', methods=['POST'])
@@ -151,8 +120,7 @@ def manage_ignored_rooms():
 
 def find_all_overlaps(timetable_data):
     """Поиск всех существующих накладок в расписании"""
-    overlaps = {
-        'room_overlaps': [],  # Накладки по аудиториям (разные предметы в одной аудитории)
+    overlaps = {'room_overlaps': [],  # Накладки по аудиториям (разные предметы в одной аудитории)
         'teacher_overlaps': []  # Накладки по преподавателям
     }
 
@@ -206,12 +174,9 @@ def find_all_overlaps(timetable_data):
                                             teacher_name = teachers[0].get(
                                                 'teacher_name') if teachers else 'Нет преподавателя'
 
-                                            room_lessons[room_key][subject].append({
-                                                'group': group_name,
-                                                'subject': subject,
-                                                'teacher': teacher_name,
-                                                'subgroup': subgroup
-                                            })
+                                            room_lessons[room_key][subject].append(
+                                                {'group': group_name, 'subject': subject, 'teacher': teacher_name,
+                                                    'subgroup': subgroup})
 
                                 # Проверка преподавателей
                                 teachers = lesson.get('teachers', [])
@@ -231,12 +196,9 @@ def find_all_overlaps(timetable_data):
                                             if subject_room_key not in teacher_lessons[teacher_key]:
                                                 teacher_lessons[teacher_key][subject_room_key] = []
 
-                                            teacher_lessons[teacher_key][subject_room_key].append({
-                                                'group': group_name,
-                                                'subject': subject,
-                                                'room': room_name,
-                                                'subgroup': subgroup
-                                            })
+                                            teacher_lessons[teacher_key][subject_room_key].append(
+                                                {'group': group_name, 'subject': subject, 'room': room_name,
+                                                    'subgroup': subgroup})
 
                     # Проверяем накладки по аудиториям
                     for (day, time, room), subjects_dict in room_lessons.items():
@@ -245,17 +207,9 @@ def find_all_overlaps(timetable_data):
                             for subject_lessons in subjects_dict.values():
                                 all_lessons.extend(subject_lessons)
 
-                            overlaps['room_overlaps'].append({
-                                'week': {
-                                    'number': week_number,
-                                    'date_start': date_start,
-                                    'date_end': date_end
-                                },
-                                'day': day,
-                                'time': time,
-                                'room': room,
-                                'lessons': all_lessons
-                            })
+                            overlaps['room_overlaps'].append(
+                                {'week': {'number': week_number, 'date_start': date_start, 'date_end': date_end},
+                                    'day': day, 'time': time, 'room': room, 'lessons': all_lessons})
 
                     # Проверяем накладки по преподавателям
                     for (day, time, teacher), subject_rooms_dict in teacher_lessons.items():
@@ -264,35 +218,20 @@ def find_all_overlaps(timetable_data):
                             for subject_room_lessons in subject_rooms_dict.values():
                                 all_lessons.extend(subject_room_lessons)
 
-                            overlaps['teacher_overlaps'].append({
-                                'week': {
-                                    'number': week_number,
-                                    'date_start': date_start,
-                                    'date_end': date_end
-                                },
-                                'day': day,
-                                'time': time,
-                                'teacher': teacher,
-                                'lessons': all_lessons
-                            })
+                            overlaps['teacher_overlaps'].append(
+                                {'week': {'number': week_number, 'date_start': date_start, 'date_end': date_end},
+                                    'day': day, 'time': time, 'teacher': teacher, 'lessons': all_lessons})
 
     # Сортируем накладки
     for overlap_type in ['room_overlaps', 'teacher_overlaps']:
-        overlaps[overlap_type].sort(key=lambda x: (
-            x['week']['number'],
-            x['day'],
-            x['time']
-        ))
+        overlaps[overlap_type].sort(key=lambda x: (x['week']['number'], x['day'], x['time']))
 
     return overlaps
 
+
 def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_name=None):
     """Проверяет накладки в расписании"""
-    overlaps = {
-        'room_overlaps': [],
-        'teacher_overlaps': [],
-        'total_count': 0
-    }
+    overlaps = {'room_overlaps': [], 'teacher_overlaps': [], 'total_count': 0}
 
     if isinstance(timetable_data, list):
         for data in timetable_data:
@@ -308,10 +247,8 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
                                 if day_data.get('weekday') == day:
                                     for lesson in day_data.get('lessons', []):
                                         if lesson.get('time') == time:
-                                            existing_lessons.append({
-                                                'lesson': lesson,
-                                                'group': group.get('group_name')
-                                            })
+                                            existing_lessons.append(
+                                                {'lesson': lesson, 'group': group.get('group_name')})
 
                         for new_lesson in new_lessons:
                             auditories = new_lesson.get('auditories', [])
@@ -341,52 +278,25 @@ def check_overlaps(timetable_data, week_number, day, time, new_lessons, group_na
 
                                 # Проверка накладок по аудиториям (только если разные предметы)
                                 if new_room == existing_room and new_subject != existing_subject:
-                                    overlap = {
-                                        'type': 'room',
-                                        'room': new_room,
-                                        'time': time,
-                                        'day': day,
-                                        'lessons': [
-                                            {
-                                                'subject': existing_subject,
-                                                'group': existing['group'],
-                                                'teacher': existing_teacher
-                                            },
-                                            {
-                                                'subject': new_subject,
-                                                'group': group_name,
-                                                'teacher': new_teacher
-                                            }
-                                        ]
-                                    }
+                                    overlap = {'type': 'room', 'room': new_room, 'time': time, 'day': day, 'lessons': [
+                                        {'subject': existing_subject, 'group': existing['group'],
+                                            'teacher': existing_teacher},
+                                        {'subject': new_subject, 'group': group_name, 'teacher': new_teacher}]}
                                     overlaps['room_overlaps'].append(overlap)
                                     overlaps['total_count'] += 1
 
                                 # Проверка накладок по преподавателям (если разные предметы или разные аудитории)
                                 if new_teacher == existing_teacher and (
                                         new_subject != existing_subject or new_room != existing_room):
-                                    overlap = {
-                                        'type': 'teacher',
-                                        'teacher': new_teacher,
-                                        'time': time,
-                                        'day': day,
-                                        'lessons': [
-                                            {
-                                                'subject': existing_subject,
-                                                'group': existing['group'],
-                                                'room': existing_room
-                                            },
-                                            {
-                                                'subject': new_subject,
-                                                'group': group_name,
-                                                'room': new_room
-                                            }
-                                        ]
-                                    }
+                                    overlap = {'type': 'teacher', 'teacher': new_teacher, 'time': time, 'day': day,
+                                        'lessons': [{'subject': existing_subject, 'group': existing['group'],
+                                            'room': existing_room},
+                                            {'subject': new_subject, 'group': group_name, 'room': new_room}]}
                                     overlaps['teacher_overlaps'].append(overlap)
                                     overlaps['total_count'] += 1
 
     return overlaps
+
 
 def merge_weeks(weeks):
     """
@@ -415,7 +325,6 @@ def merge_weeks(weeks):
         - Ведется подробное логирование процесса объединения
     """
 
-
     print("\n=== Начало объединения недель ===")
 
     merged_result = []
@@ -433,12 +342,8 @@ def merge_weeks(weeks):
     for week_num, week_list in weeks_by_number.items():
         print(f"\nОбработка недели {week_num}")
 
-        merged_week = {
-            'week_number': week_num,
-            'date_start': week_list[0]['date_start'],
-            'date_end': week_list[0]['date_end'],
-            'groups': []
-        }
+        merged_week = {'week_number': week_num, 'date_start': week_list[0]['date_start'],
+            'date_end': week_list[0]['date_end'], 'groups': []}
 
         # Словарь для хранения групп
         groups_dict = {}
@@ -450,16 +355,10 @@ def merge_weeks(weeks):
                 print(f"Обработка группы {group_name}")
 
                 if group_name not in groups_dict:
-                    groups_dict[group_name] = {
-                        'group_name': group_name,
-                        'days': []
-                    }
+                    groups_dict[group_name] = {'group_name': group_name, 'days': []}
                     # Инициализируем дни недели
                     for i in range(1, 7):
-                        groups_dict[group_name]['days'].append({
-                            'weekday': i,
-                            'lessons': []
-                        })
+                        groups_dict[group_name]['days'].append({'weekday': i, 'lessons': []})
                     print(f"Создана новая запись для группы {group_name}")
 
                 # Обрабатываем каждый день группы
@@ -478,9 +377,9 @@ def merge_weeks(weeks):
 
                                 # Проверяем существующие уроки
                                 for existing_lesson in existing_day['lessons']:
-                                    if (existing_lesson.get('time') == new_time and
-                                            existing_lesson.get('subgroup') == new_subgroup and
-                                            existing_lesson.get('subject') == new_lesson.get('subject')):
+                                    if (existing_lesson.get('time') == new_time and existing_lesson.get(
+                                        'subgroup') == new_subgroup and existing_lesson.get(
+                                        'subject') == new_lesson.get('subject')):
                                         should_add = False
                                         break
 
@@ -522,6 +421,220 @@ def save_temp_data(data):
         pickle.dump(data, f)
 
     return temp_id
+
+
+@bp.route('/api/transfer_options', methods=['POST'])
+def get_transfer_options():
+    try:
+        data = request.get_json()
+
+        group_name = data.get('group_name')
+        current_day = data.get('current_day')
+        current_time = data.get('current_time')
+        current_week = data.get('current_week')
+        lesson_data = data.get('lesson')
+
+        if not all([group_name, current_day, current_time, current_week, lesson_data]):
+            return jsonify({'error': 'Отсутствуют необходимые параметры'}), 400
+
+        timetable_data = timetable_handler.read_timetable()
+
+        options = find_transfer_slots(timetable_data, group_name, lesson_data, current_week, current_day, current_time)
+
+        return jsonify(options)
+
+    except Exception as e:
+        print(f"Ошибка в get_transfer_options: {str(e)}")
+        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+
+
+def find_transfer_slots(timetable_data, group_name, lesson_data, current_week, current_day, current_time):
+    transfer_options = []
+    current_week_num = int(current_week)
+
+    # Получаем список доступных недель
+    available_weeks = []
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            for week in data.get('timetable', []):
+                week_num = week.get('week_number')
+                if week_num >= current_week_num:
+                    # Проверяем, есть ли занятия на этой неделе
+                    has_lessons = False
+                    for group in week.get('groups', []):
+                        if group.get('days', []):
+                            has_lessons = True
+                            break
+                    if has_lessons:
+                        available_weeks.append(week_num)
+
+    # Для каждой доступной недели
+    for week_num in available_weeks:
+        # Определяем диапазон дней для проверки
+        start_day = current_day if week_num == current_week_num else 1
+
+        for day in range(start_day, 7):
+            for time in range(1, 9):
+                # Пропускаем текущий слот
+                if week_num == current_week_num and day == current_day and time == current_time:
+                    continue
+
+                score = calculate_transfer_score(timetable_data, week_num, day, time, current_week_num, current_day,
+                    current_time, group_name, lesson_data)
+
+                if score['total'] > 0:
+                    transfer_options.append(
+                        {'week': week_num, 'day': day, 'time': time, 'score': score['total'], 'room': score['room'],
+                            'conflicts': score['conflicts']})
+
+    transfer_options.sort(key=lambda x: x['score'], reverse=True)
+    return transfer_options[:5]
+
+
+def calculate_transfer_score(timetable_data, week_num, day, time, current_week, current_day, current_time, group_name,
+                             lesson_data):
+    """
+    Рассчитывает рейтинг для варианта переноса
+    """
+    score = {'total': 0, 'conflicts': [], 'room': lesson_data.get('auditories', [{}])[0].get('auditory_name', '')}
+
+    teacher_name = lesson_data.get('teachers', [{}])[0].get('teacher_name')
+    room_name = score['room']
+
+    # Базовые баллы
+    if week_num == current_week:
+        score['total'] += 20  # Текущая неделя
+
+    if day == current_day:
+        score['total'] += 15  # Тот же день
+    elif abs(day - current_day) == 1:
+        score['total'] += 10  # Соседний день
+
+    if abs(time - current_time) == 1:
+        score['total'] += 10  # Соседняя пара
+
+    # Проверяем доступность
+    if not is_time_free(timetable_data, week_num, day, time, group_name=group_name):
+        return {'total': 0, 'conflicts': ['Группа занята'], 'room': room_name}
+
+    if not is_time_free(timetable_data, week_num, day, time, teacher_name=teacher_name):
+        score['conflicts'].append(f'Преподаватель {teacher_name} занят')
+        score['total'] -= 30
+
+    if not is_time_free(timetable_data, week_num, day, time, room_name=room_name):
+        similar_rooms = find_similar_rooms(timetable_data, room_name, week_num, day, time)
+        if similar_rooms:
+            score['room'] = similar_rooms[0]
+            score['total'] += 5
+        else:
+            score['conflicts'].append(f'Аудитория {room_name} занята')
+            score['total'] -= 20
+
+    # Проверяем "окна"
+    windows = count_windows(timetable_data, week_num, day, group_name)
+    score['total'] -= windows * 5
+
+    return score
+
+
+def is_time_free(timetable_data, week, day, time, group_name=None, teacher_name=None, room_name=None):
+    """
+    Проверяет доступность слота для группы/преподавателя/аудитории
+    """
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week_data in data['timetable']:
+                    if str(week_data.get('week_number')) == str(week):
+                        for group in week_data.get('groups', []):
+                            # Проверяем для группы
+                            if group_name and group.get('group_name') == group_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            if lesson.get('time') == time:
+                                                return False
+
+                            # Проверяем для преподавателя
+                            if teacher_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            if lesson.get('time') == time:
+                                                for teacher in lesson.get('teachers', []):
+                                                    if teacher.get('teacher_name') == teacher_name:
+                                                        return False
+
+                            # Проверяем для аудитории
+                            if room_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            if lesson.get('time') == time:
+                                                for room in lesson.get('auditories', []):
+                                                    if room.get('auditory_name') == room_name:
+                                                        return False
+    return True
+
+
+def find_similar_rooms(timetable_data, room_name, week, day, time):
+    """
+    Ищет похожие свободные аудитории
+    """
+    similar_rooms = []
+
+    # Получаем корпус и номер аудитории
+    try:
+        building = room_name.split('.')[0]
+    except:
+        building = None
+
+    for data in timetable_data:
+        if 'timetable' in data:
+            for week_data in data['timetable']:
+                for group in week_data.get('groups', []):
+                    for day_data in group.get('days', []):
+                        for lesson in day_data.get('lessons', []):
+                            for room in lesson.get('auditories', []):
+                                candidate = room.get('auditory_name')
+                                if candidate and candidate != room_name:
+                                    # Проверяем тот же корпус
+                                    try:
+                                        if building and candidate.split('.')[0] == building:
+                                            if is_time_free(timetable_data, week, day, time, room_name=candidate):
+                                                similar_rooms.append(candidate)
+                                    except:
+                                        continue
+
+    return list(set(similar_rooms))
+
+
+def count_windows(timetable_data, week, day, group_name):
+    """
+    Подсчитывает количество "окон" в расписании группы
+    """
+    lessons_times = set()
+
+    if isinstance(timetable_data, list):
+        for data in timetable_data:
+            if 'timetable' in data:
+                for week_data in data['timetable']:
+                    if str(week_data.get('week_number')) == str(week):
+                        for group in week_data.get('groups', []):
+                            if group.get('group_name') == group_name:
+                                for day_data in group.get('days', []):
+                                    if day_data.get('weekday') == day:
+                                        for lesson in day_data.get('lessons', []):
+                                            lessons_times.add(lesson.get('time'))
+
+    if lessons_times:
+        times = sorted(list(lessons_times))
+        windows = 0
+        for i in range(len(times) - 1):
+            if times[i + 1] - times[i] > 1:
+                windows += times[i + 1] - times[i] - 1
+        return windows
+    return 0
 
 
 def load_temp_data(temp_id):
@@ -567,62 +680,27 @@ def remove_temp_data(temp_id):
         os.remove(temp_path)
 
 
-
-
-
 class ExcelExporter:
     def __init__(self):
         # Расписание звонков
-        self.time_slots = [
-            '08:00 - 09:20',
-            '09:30 - 10:50',
-            '11:00 - 12:20',
-            '12:40 - 14:00',
-            '14:10 - 15:30',
-            '15:40 - 17:00',
-            '17:10 - 18:30',
-            '18:40 - 20:00'
-        ]
+        self.time_slots = ['08:00 - 09:20', '09:30 - 10:50', '11:00 - 12:20', '12:40 - 14:00', '14:10 - 15:30',
+            '15:40 - 17:00', '17:10 - 18:30', '18:40 - 20:00']
         self.days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
         # Определение стилей
-        self.styles = {
-            'header': {
-                'fill': PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid'),
-                'font': Font(bold=True),
-                'border': Border(
-                    left=Side(style='thin'),
-                    right=Side(style='thin'),
-                    top=Side(style='thin'),
-                    bottom=Side(style='thin')
-                ),
-                'alignment': Alignment(horizontal='center', vertical='center', wrap_text=True)
-            },
-            'cell': {
-                'border': Border(
-                    left=Side(style='thin'),
-                    right=Side(style='thin'),
-                    top=Side(style='thin'),
-                    bottom=Side(style='thin')
-                ),
-                # Обновляем выравнивание для лучшей читаемости
-                'alignment': Alignment(
-                    horizontal='center',
-                    vertical='center',
-                    wrap_text=True,
-                    shrink_to_fit=False  # Отключаем уменьшение текста
-                )
-            },
-            'title': {
-                'font': Font(bold=True, size=14),
-                'alignment': Alignment(horizontal='center')
-            },
-            'lesson_types': {
-                'л.': PatternFill(start_color='E6F3FF', end_color='E6F3FF', fill_type='solid'),
+        self.styles = {'header': {'fill': PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid'),
+            'font': Font(bold=True),
+            'border': Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                bottom=Side(style='thin')),
+            'alignment': Alignment(horizontal='center', vertical='center', wrap_text=True)}, 'cell': {
+            'border': Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                bottom=Side(style='thin')), # Обновляем выравнивание для лучшей читаемости
+            'alignment': Alignment(horizontal='center', vertical='center', wrap_text=True, shrink_to_fit=False
+                # Отключаем уменьшение текста
+            )}, 'title': {'font': Font(bold=True, size=14), 'alignment': Alignment(horizontal='center')},
+            'lesson_types': {'л.': PatternFill(start_color='E6F3FF', end_color='E6F3FF', fill_type='solid'),
                 'пр.': PatternFill(start_color='E6FFE6', end_color='E6FFE6', fill_type='solid'),
-                'лаб.': PatternFill(start_color='FFE6FF', end_color='FFE6FF', fill_type='solid')
-            }
-        }
+                'лаб.': PatternFill(start_color='FFE6FF', end_color='FFE6FF', fill_type='solid')}}
 
     def create_excel(self, timetable_data, week_number, group_name=None, teacher_name=None, room_name=None):
         """Создание Excel файла с расписанием"""
@@ -865,12 +943,7 @@ class ExcelExporter:
         cell.border = self.styles['cell']['border']
 
         # Обновленное выравнивание для компактности
-        cell.alignment = Alignment(
-            horizontal='center',
-            vertical='center',
-            wrap_text=True,
-            shrink_to_fit=False
-        )
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True, shrink_to_fit=False)
 
         # Применяем цвет в зависимости от типа занятия
         lesson_type = lesson.get('type')
@@ -903,12 +976,7 @@ class ExcelExporter:
     def _apply_multiple_lessons_style(self, cell, lessons):
         """Применение стилей к ячейке с несколькими занятиями"""
         cell.border = self.styles['cell']['border']
-        cell.alignment = Alignment(
-            horizontal='center',
-            vertical='center',
-            wrap_text=True,
-            shrink_to_fit=False
-        )
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True, shrink_to_fit=False)
 
         # Устанавливаем шрифт
         cell.font = Font(size=9)
@@ -945,8 +1013,6 @@ class ExcelExporter:
                 ws.row_dimensions[row].height = 45
 
 
-
-
 @bp.route('/export/<type>/<name>')
 def export_excel(type, name):
     """Экспорт расписания в Excel"""
@@ -979,12 +1045,8 @@ def export_excel(type, name):
         wb.save(excel_file)
         excel_file.seek(0)
 
-        return send_file(
-            excel_file,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
+        return send_file(excel_file, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True, download_name=filename)
 
     except Exception as e:
         print(f"Ошибка при экспорте в Excel: {str(e)}")
@@ -1003,11 +1065,9 @@ def group_timetable(group_name):
         for timetable_item in timetable_data:
             if 'timetable' in timetable_item:
                 for week_data in timetable_item['timetable']:
-                    weeks.append({
-                        'week_number': week_data.get('week_number'),
-                        'date_start': week_data.get('date_start'),
-                        'date_end': week_data.get('date_end')
-                    })
+                    weeks.append(
+                        {'week_number': week_data.get('week_number'), 'date_start': week_data.get('date_start'),
+                            'date_end': week_data.get('date_end')})
 
     # Сортируем недели по номеру
     weeks.sort(key=lambda x: x['week_number'])
@@ -1034,16 +1094,9 @@ def group_timetable(group_name):
         return redirect(url_for('timetable.group_timetable', group_name=group_name, week=selected_week))
 
     # Расписание звонков
-    time_slots = [
-        {'start': '08:00', 'end': '09:20'},
-        {'start': '09:30', 'end': '10:50'},
-        {'start': '11:00', 'end': '12:20'},
-        {'start': '12:40', 'end': '14:00'},
-        {'start': '14:10', 'end': '15:30'},
-        {'start': '15:40', 'end': '17:00'},
-        {'start': '17:10', 'end': '18:30'},
-        {'start': '18:40', 'end': '20:00'}
-    ]
+    time_slots = [{'start': '08:00', 'end': '09:20'}, {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'}, {'start': '12:40', 'end': '14:00'}, {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'}, {'start': '17:10', 'end': '18:30'}, {'start': '18:40', 'end': '20:00'}]
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
@@ -1093,19 +1146,10 @@ def group_timetable(group_name):
     def get_lessons_wrapper(timetable, day, time):
         return get_lessons(timetable, day, time, group_name, selected_week)
 
-    return render_template('timetable/group.html',
-                           group_name=group_name,
-                           weeks=weeks,
-                           current_week=selected_week,
-                           time_slots=time_slots,
-                           day_names=day_names,
-                           dates=dates,
-                           current_weekday=current_weekday,
-                           current_pair=current_pair,
-                           current_time=current_time,
-                           timetable=timetable_data,
-                           get_lessons=get_lessons_wrapper,
-                           unique_values=unique_values)
+    return render_template('timetable/group.html', group_name=group_name, weeks=weeks, current_week=selected_week,
+                           time_slots=time_slots, day_names=day_names, dates=dates, current_weekday=current_weekday,
+                           current_pair=current_pair, current_time=current_time, timetable=timetable_data,
+                           get_lessons=get_lessons_wrapper, unique_values=unique_values)
 
 
 @bp.route('/free_rooms', methods=['GET', 'POST'])
@@ -1140,11 +1184,8 @@ def free_rooms():
         for data in timetable_data:
             if 'timetable' in data:
                 for week in data['timetable']:
-                    weeks.append({
-                        'week_number': week.get('week_number'),
-                        'date_start': week.get('date_start'),
-                        'date_end': week.get('date_end')
-                    })
+                    weeks.append({'week_number': week.get('week_number'), 'date_start': week.get('date_start'),
+                        'date_end': week.get('date_end')})
     weeks.sort(key=lambda x: x['week_number'])
 
     free_rooms = []
@@ -1184,30 +1225,16 @@ def free_rooms():
             else:
                 free_rooms = sorted(list(available_rooms))
 
-    time_slots = [
-        {'start': '08:00', 'end': '09:20'},
-        {'start': '09:30', 'end': '10:50'},
-        {'start': '11:00', 'end': '12:20'},
-        {'start': '12:40', 'end': '14:00'},
-        {'start': '14:10', 'end': '15:30'},
-        {'start': '15:40', 'end': '17:00'},
-        {'start': '17:10', 'end': '18:30'},
-        {'start': '18:40', 'end': '20:00'}
-    ]
+    time_slots = [{'start': '08:00', 'end': '09:20'}, {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'}, {'start': '12:40', 'end': '14:00'}, {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'}, {'start': '17:10', 'end': '18:30'}, {'start': '18:40', 'end': '20:00'}]
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
-    return render_template('timetable/free_rooms.html',
-                           weeks=weeks,
-                           time_slots=time_slots,
-                           day_names=day_names,
-                           free_rooms=free_rooms,
-                           selected_week=selected_week,
-                           selected_day=selected_day,
-                           selected_time=selected_time,
-                           selected_building=selected_building,
-                           buildings=dict(sorted(buildings.items())),
-                           all_rooms=sorted(list(all_rooms)))
+    return render_template('timetable/free_rooms.html', weeks=weeks, time_slots=time_slots, day_names=day_names,
+                           free_rooms=free_rooms, selected_week=selected_week, selected_day=selected_day,
+                           selected_time=selected_time, selected_building=selected_building,
+                           buildings=dict(sorted(buildings.items())), all_rooms=sorted(list(all_rooms)))
 
 
 @bp.route('/api/save_lesson', methods=['POST'])
@@ -1255,12 +1282,8 @@ def get_unique_values(timetable_data):
                         for auditory in lesson.get('auditories', []):
                             auditories.add(auditory.get('auditory_name'))
 
-    return {
-        'subjects': sorted(list(filter(None, subjects))),
-        'teachers': sorted(list(filter(None, teachers))),
-        'auditories': sorted(list(filter(None, auditories))),
-        'lesson_types': ['л.', 'пр.', 'лаб.']
-    }
+    return {'subjects': sorted(list(filter(None, subjects))), 'teachers': sorted(list(filter(None, teachers))),
+        'auditories': sorted(list(filter(None, auditories))), 'lesson_types': ['л.', 'пр.', 'лаб.']}
 
 
 @bp.route('/api/group/<group_name>')
@@ -1342,10 +1365,8 @@ def get_lessons(timetable, day, time, group_name, selected_week=None):
                                 for day_data in group.get('days', []):
                                     if day_data.get('weekday') == day:
                                         # Собираем все занятия для данного времени
-                                        all_lessons = [
-                                            lesson for lesson in day_data.get('lessons', [])
-                                            if lesson.get('time') == time
-                                        ]
+                                        all_lessons = [lesson for lesson in day_data.get('lessons', []) if
+                                            lesson.get('time') == time]
 
                                         # Если есть занятия, сортируем их по номеру подгруппы
                                         if all_lessons:
@@ -1414,11 +1435,7 @@ def update_timetable():
                     for lesson in teacher_overlap['lessons']:
                         warning_message += f"- {lesson['subject']} ({lesson['group']}, ауд. {lesson['room']})\n"
 
-                return jsonify({
-                    "status": "warning",
-                    "message": warning_message,
-                    "overlaps": overlaps
-                }), 409
+                return jsonify({"status": "warning", "message": warning_message, "overlaps": overlaps}), 409
 
         # Получаем текущие занятия для записи в историю
         if isinstance(timetable_data, list):
@@ -1430,10 +1447,8 @@ def update_timetable():
                                 if group.get('group_name') == group_name:
                                     for day_data in group.get('days', []):
                                         if day_data.get('weekday') == day:
-                                            current_lessons.extend([
-                                                lesson for lesson in day_data.get('lessons', [])
-                                                if lesson.get('time') == time
-                                            ])
+                                            current_lessons.extend([lesson for lesson in day_data.get('lessons', []) if
+                                                lesson.get('time') == time])
 
         print("\n=== DEBUG: CURRENT STATE ===")
         print("Current lessons in database:")
@@ -1455,11 +1470,9 @@ def update_timetable():
                 changes = True
             else:
                 for new, old in zip(lessons, current_lessons):
-                    if (new.get('subject') != old.get('subject') or
-                            new.get('type') != old.get('type') or
-                            new.get('subgroup') != old.get('subgroup') or
-                            str(new.get('teachers')) != str(old.get('teachers')) or
-                            str(new.get('auditories')) != str(old.get('auditories'))):
+                    if (new.get('subject') != old.get('subject') or new.get('type') != old.get('type') or new.get(
+                        'subgroup') != old.get('subgroup') or str(new.get('teachers')) != str(
+                        old.get('teachers')) or str(new.get('auditories')) != str(old.get('auditories'))):
                         changes = True
                         break
 
@@ -1474,15 +1487,8 @@ def update_timetable():
                 lesson['week'] = int(week)
 
             # Подготавливаем данные для истории
-            history_data = {
-                'group_name': group_name,
-                'day': day,
-                'time': time,
-                'week': week,
-                'lessons': lessons,
-                'old_lessons': current_lessons,
-                'editor_ip': get_client_ip()
-            }
+            history_data = {'group_name': group_name, 'day': day, 'time': time, 'week': week, 'lessons': lessons,
+                'old_lessons': current_lessons, 'editor_ip': get_client_ip()}
 
             # Добавляем запись в историю
             history_handler.add_record(action, history_data)
@@ -1503,17 +1509,14 @@ def update_timetable():
                                             if day_data.get('weekday') == day:
                                                 print(f"Найден день {day}")
                                                 # Сохраняем существующие занятия для других пар
-                                                other_lessons = [
-                                                    lesson for lesson in day_data.get('lessons', [])
-                                                    if lesson.get('time') != time
-                                                ]
+                                                other_lessons = [lesson for lesson in day_data.get('lessons', []) if
+                                                    lesson.get('time') != time]
 
                                                 # Сохраняем занятия для других недель
-                                                other_week_lessons = [
-                                                    lesson for lesson in day_data.get('lessons', [])
-                                                    if lesson.get('time') == time and
-                                                       lesson.get('week', int(week)) != int(week)
-                                                ]
+                                                other_week_lessons = [lesson for lesson in day_data.get('lessons', [])
+                                                    if
+                                                    lesson.get('time') == time and lesson.get('week', int(week)) != int(
+                                                        week)]
 
                                                 # Добавляем новые занятия
                                                 day_data['lessons'] = other_lessons + other_week_lessons + lessons
@@ -1537,39 +1540,18 @@ def update_timetable():
                 # Отправляем уведомления
                 if action == 'create':
                     for lesson in lessons:
-                        send_lesson_change_notification(
-                            action='create',
-                            group_name=group_name,
-                            weekday=day,
-                            time_slot=time,
-                            week_number=week,
-                            lesson_data=lesson,
-                            editor_ip=get_client_ip()
-                        )
+                        send_lesson_change_notification(action='create', group_name=group_name, weekday=day,
+                            time_slot=time, week_number=week, lesson_data=lesson, editor_ip=get_client_ip())
                 elif action == 'delete':
                     for lesson in current_lessons:
-                        send_lesson_change_notification(
-                            action='delete',
-                            group_name=group_name,
-                            weekday=day,
-                            time_slot=time,
-                            week_number=week,
-                            lesson_data=lesson,
-                            editor_ip=get_client_ip()
-                        )
+                        send_lesson_change_notification(action='delete', group_name=group_name, weekday=day,
+                            time_slot=time, week_number=week, lesson_data=lesson, editor_ip=get_client_ip())
                 elif action == 'update':
                     for i, new_lesson in enumerate(lessons):
                         if i < len(current_lessons):
-                            send_lesson_change_notification(
-                                action='update',
-                                group_name=group_name,
-                                weekday=day,
-                                time_slot=time,
-                                week_number=week,
-                                lesson_data=new_lesson,
-                                old_lesson_data=current_lessons[i],
-                                editor_ip=get_client_ip()
-                            )
+                            send_lesson_change_notification(action='update', group_name=group_name, weekday=day,
+                                time_slot=time, week_number=week, lesson_data=new_lesson,
+                                old_lesson_data=current_lessons[i], editor_ip=get_client_ip())
 
                 return jsonify({"status": "success"})
             else:
@@ -1633,16 +1615,12 @@ def update_lessons(self, group_name, day, time, new_lessons):
                     print(f"Найден день {day}")
                     # Сохраняем существующие занятия для других недель
                     existing_lessons = day_data.get('lessons', [])
-                    other_weeks_lessons = [
-                        lesson for lesson in existing_lessons
-                        if lesson.get('time') == time and lesson.get('week', week_number) != week_number
-                    ]
+                    other_weeks_lessons = [lesson for lesson in existing_lessons if
+                        lesson.get('time') == time and lesson.get('week', week_number) != week_number]
 
                     # Обновляем занятия для текущей недели
-                    current_week_lessons = [
-                        lesson for lesson in existing_lessons
-                        if lesson.get('time') != time or lesson.get('week', week_number) != week_number
-                    ]
+                    current_week_lessons = [lesson for lesson in existing_lessons if
+                        lesson.get('time') != time or lesson.get('week', week_number) != week_number]
 
                     # Добавляем новые занятия с указанием недели
                     if new_lessons:
@@ -1655,11 +1633,7 @@ def update_lessons(self, group_name, day, time, new_lessons):
                     day_data['lessons'] = current_week_lessons + other_weeks_lessons
 
                     # Сортируем занятия
-                    day_data['lessons'].sort(key=lambda x: (
-                        x.get('week', 0),
-                        x.get('time', 0),
-                        x.get('subgroup', 0)
-                    ))
+                    day_data['lessons'].sort(key=lambda x: (x.get('week', 0), x.get('time', 0), x.get('subgroup', 0)))
 
                     found = True
                     print(f"Обновлено занятий: {len(new_lessons) if new_lessons else 0}")
@@ -1697,15 +1671,9 @@ def search_timetable():
     date_range = None
 
     # Обновленные параметры поиска
-    search_params = {
-        'group': request.form.get('group', ''),
-        'subject': request.form.get('subject', ''),
-        'lesson_type': request.form.get('lesson_type', '')
-    } if request.method == 'POST' else {
-        'group': '',
-        'subject': '',
-        'lesson_type': ''
-    }
+    search_params = {'group': request.form.get('group', ''), 'subject': request.form.get('subject', ''),
+        'lesson_type': request.form.get('lesson_type', '')} if request.method == 'POST' else {'group': '',
+        'subject': '', 'lesson_type': ''}
 
     if request.method == 'POST':
         # Загружаем данные только при POST-запросе
@@ -1756,9 +1724,9 @@ def search_timetable():
 
                                         # Проверка соответствия критериям поиска
                                         if (search_params['subject'] and lesson.get('subject') != search_params[
-                                            'subject']) or \
-                                                (search_params['lesson_type'] and lesson.get('type') != search_params[
-                                                    'lesson_type']):
+                                            'subject']) or (
+                                                search_params['lesson_type'] and lesson.get('type') != search_params[
+                                            'lesson_type']):
                                             continue
 
                                         # Получаем дату занятия
@@ -1769,22 +1737,17 @@ def search_timetable():
                                         lesson_date = start_date + timedelta(days=weekday - 1)
 
                                         # Добавляем результат с подгруппой
-                                        search_results.append({
-                                            'date': lesson_date.strftime('%d.%m.%Y'),
-                                            'weekday':
-                                                ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][
-                                                    weekday - 1],
-                                            'week': week_number,
+                                        search_results.append({'date': lesson_date.strftime('%d.%m.%Y'), 'weekday':
+                                            ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][
+                                                weekday - 1], 'week': week_number,
                                             'week_period': f"{date_start} - {date_end}",
-                                            'time': f"Пара {lesson.get('time')}",
-                                            'time_number': lesson.get('time'),
-                                            'group': group_name,
-                                            'subject': lesson.get('subject'),
-                                            'type': lesson.get('type'),
-                                            'subgroup': lesson.get('subgroup', 0),  # Добавлено
+                                            'time': f"Пара {lesson.get('time')}", 'time_number': lesson.get('time'),
+                                            'group': group_name, 'subject': lesson.get('subject'),
+                                            'type': lesson.get('type'), 'subgroup': lesson.get('subgroup', 0),
+                                            # Добавлено
                                             'teachers': [t.get('teacher_name') for t in lesson.get('teachers', [])],
-                                            'auditories': [a.get('auditory_name') for a in lesson.get('auditories', [])]
-                                        })
+                                            'auditories': [a.get('auditory_name') for a in
+                                                           lesson.get('auditories', [])]})
 
         # Определяем диапазон дат
         if all_dates:
@@ -1794,9 +1757,7 @@ def search_timetable():
 
         # Сортируем результаты
         search_results.sort(key=lambda x: (
-            datetime.strptime(x['date'], '%d.%m.%Y'),
-            x['time_number'],
-            x['group'],  # Добавлена сортировка по группе
+            datetime.strptime(x['date'], '%d.%m.%Y'), x['time_number'], x['group'],  # Добавлена сортировка по группе
             x['subgroup'] or 0  # Добавлена сортировка по подгруппе
         ))
 
@@ -1820,13 +1781,9 @@ def search_timetable():
                                     if lesson.get('subject'):
                                         subjects.add(lesson.get('subject'))
 
-    return render_template('timetable/search.html',
-                           groups=sorted(list(filter(None, groups))),
-                           subjects=sorted(list(filter(None, subjects))),
-                           lesson_types=sorted(list(lesson_types)),
-                           search_results=search_results,
-                           date_range=date_range,
-                           search_params=search_params)
+    return render_template('timetable/search.html', groups=sorted(list(filter(None, groups))),
+                           subjects=sorted(list(filter(None, subjects))), lesson_types=sorted(list(lesson_types)),
+                           search_results=search_results, date_range=date_range, search_params=search_params)
 
 
 def parse_date(date_str):
@@ -1890,23 +1847,16 @@ def export_search_results(results):
     ws.title = "Результаты поиска"
 
     # Заголовки
-    headers = [
-        'Дата', 'День недели', 'Номер недели', 'Период недели',
-        'Время', 'Группа', 'Дисциплина', 'Тип занятия', 'Подгруппа',
-        'Преподаватели', 'Аудитории'
-    ]
+    headers = ['Дата', 'День недели', 'Номер недели', 'Период недели', 'Время', 'Группа', 'Дисциплина', 'Тип занятия',
+        'Подгруппа', 'Преподаватели', 'Аудитории']
 
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col)
         cell.value = header
         cell.font = Font(bold=True)
         cell.fill = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
-        cell.border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+            bottom=Side(style='thin'))
 
     # Данные
     for row, result in enumerate(results, 2):
@@ -1930,24 +1880,16 @@ def export_search_results(results):
     for row in range(2, len(results) + 2):
         for col in range(1, len(headers) + 1):
             cell = ws.cell(row=row, column=col)
-            cell.border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
-            )
+            cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                bottom=Side(style='thin'))
 
     # Создаем временный файл
     with BytesIO() as excel_file:
         wb.save(excel_file)
         excel_file.seek(0)
 
-        return send_file(
-            excel_file,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=f'search_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-        )
+        return send_file(excel_file, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True, download_name=f'search_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
 
 
 @bp.route('/teacher/<teacher_name>')
@@ -1961,11 +1903,9 @@ def teacher_timetable(teacher_name):
         for timetable_item in timetable_data:
             if 'timetable' in timetable_item:
                 for week_data in timetable_item['timetable']:
-                    weeks.append({
-                        'week_number': week_data.get('week_number'),
-                        'date_start': week_data.get('date_start'),
-                        'date_end': week_data.get('date_end')
-                    })
+                    weeks.append(
+                        {'week_number': week_data.get('week_number'), 'date_start': week_data.get('date_start'),
+                            'date_end': week_data.get('date_end')})
 
     weeks.sort(key=lambda x: x['week_number'])
 
@@ -1993,16 +1933,9 @@ def teacher_timetable(teacher_name):
         selected_week = str(closest_week['week_number'])
         return redirect(url_for('timetable.teacher_timetable', teacher_name=teacher_name, week=selected_week))
 
-    time_slots = [
-        {'start': '08:00', 'end': '09:20'},
-        {'start': '09:30', 'end': '10:50'},
-        {'start': '11:00', 'end': '12:20'},
-        {'start': '12:40', 'end': '14:00'},
-        {'start': '14:10', 'end': '15:30'},
-        {'start': '15:40', 'end': '17:00'},
-        {'start': '17:10', 'end': '18:30'},
-        {'start': '18:40', 'end': '20:00'}
-    ]
+    time_slots = [{'start': '08:00', 'end': '09:20'}, {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'}, {'start': '12:40', 'end': '14:00'}, {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'}, {'start': '17:10', 'end': '18:30'}, {'start': '18:40', 'end': '20:00'}]
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
@@ -2034,9 +1967,9 @@ def teacher_timetable(teacher_name):
                                 for day_data in group.get('days', []):
                                     if day_data.get('weekday') == day:
                                         for lesson in day_data.get('lessons', []):
-                                            if (lesson.get('time') == time and
-                                                    any(teacher.get('teacher_name') == teacher_name
-                                                        for teacher in lesson.get('teachers', []))):
+                                            if (lesson.get('time') == time and any(
+                                                teacher.get('teacher_name') == teacher_name for teacher in
+                                                lesson.get('teachers', []))):
 
                                                 key = (lesson.get('subject'), lesson.get('type'),
                                                        lesson.get('auditories', [{}])[0].get('auditory_name'))
@@ -2058,16 +1991,9 @@ def teacher_timetable(teacher_name):
             print(f"Ошибка в get_teacher_lessons: {str(e)}")
             return None
 
-    return render_template('timetable/teacher.html',
-                           teacher_name=teacher_name,
-                           weeks=weeks,
-                           current_week=selected_week,
-                           time_slots=time_slots,
-                           day_names=day_names,
-                           timetable=timetable_data,
-                           get_lessons=get_teacher_lessons,
-                           current_pair=current_pair,
-                           current_weekday=current_weekday,
+    return render_template('timetable/teacher.html', teacher_name=teacher_name, weeks=weeks, current_week=selected_week,
+                           time_slots=time_slots, day_names=day_names, timetable=timetable_data,
+                           get_lessons=get_teacher_lessons, current_pair=current_pair, current_weekday=current_weekday,
                            current_time=current_time)
 
 
@@ -2090,8 +2016,7 @@ def get_subjects_by_group(group_name):
 
     return jsonify(sorted(list(subjects)))
 
-UPLOAD_FOLDER = 'data/uploads'
-MERGED_FILE = 'data/timetable.json'
+
 
 
 @bp.route('/login', methods=['POST'])
@@ -2238,12 +2163,8 @@ def upload_files():
                         week_num = week['week_number']
                         if week_num in existing_weeks:
                             print(f"Конфликт: неделя {week_num} в файле {file.filename}")
-                            conflicts.append({
-                                'week': week_num,
-                                'file': file.filename,
-                                'date_start': week['date_start'],
-                                'date_end': week['date_end']
-                            })
+                            conflicts.append({'week': week_num, 'file': file.filename, 'date_start': week['date_start'],
+                                'date_end': week['date_end']})
                 file_data_list.append(item)
 
         except json.JSONDecodeError as e:
@@ -2266,10 +2187,7 @@ def upload_files():
     # Если есть конфликты
     if conflicts:
         print("Сохранение данных во временный файл")
-        temp_id = save_temp_data({
-            'pending_data': file_data_list,
-            'conflicts': conflicts
-        })
+        temp_id = save_temp_data({'pending_data': file_data_list, 'conflicts': conflicts})
         session['temp_id'] = temp_id
         return redirect(url_for('timetable.resolve_conflicts'))
 
@@ -2318,16 +2236,11 @@ def resolve_conflicts():
     for conflict in temp_data['conflicts']:
         week_num = conflict['week']
         if week_num not in conflicts_by_week:
-            conflicts_by_week[week_num] = {
-                'week': week_num,
-                'date_start': conflict['date_start'],
-                'date_end': conflict['date_end'],
-                'files': []
-            }
+            conflicts_by_week[week_num] = {'week': week_num, 'date_start': conflict['date_start'],
+                'date_end': conflict['date_end'], 'files': []}
         conflicts_by_week[week_num]['files'].append(conflict['file'])
 
-    return render_template('timetable/resolve_conflicts.html',
-                           conflicts=conflicts_by_week.values())
+    return render_template('timetable/resolve_conflicts.html', conflicts=conflicts_by_week.values())
 
 
 @bp.route('/apply_resolution', methods=['POST'])
@@ -2338,17 +2251,11 @@ def apply_resolution():
     temp_id = session.get('temp_id')
 
     if not temp_id:
-        return jsonify({
-            'status': 'error',
-            'message': 'Данные для обработки не найдены'
-        }), 400
+        return jsonify({'status': 'error', 'message': 'Данные для обработки не найдены'}), 400
 
     temp_data = load_temp_data(temp_id)
     if not temp_data:
-        return jsonify({
-            'status': 'error',
-            'message': 'Временные данные не найдены'
-        }), 400
+        return jsonify({'status': 'error', 'message': 'Временные данные не найдены'}), 400
 
     pending_data = temp_data['pending_data']
     current_data = read_merged_file() or []
@@ -2359,30 +2266,18 @@ def apply_resolution():
 
         if action == 'skip':
             # Пропускаем новые данные для этой недели
-            pending_data = [
-                item for item in pending_data
-                if 'timetable' not in item or
-                   not any(w['week_number'] == week_num for w in item['timetable'])
-            ]
+            pending_data = [item for item in pending_data if
+                'timetable' not in item or not any(w['week_number'] == week_num for w in item['timetable'])]
         elif action == 'replace':
             # Удаляем старые данные
-            current_data = [
-                item for item in current_data
-                if 'timetable' not in item or
-                   not any(w['week_number'] == week_num for w in item['timetable'])
-            ]
+            current_data = [item for item in current_data if
+                'timetable' not in item or not any(w['week_number'] == week_num for w in item['timetable'])]
             # Добавляем новые данные
-            current_data.extend([
-                item for item in pending_data
-                if 'timetable' in item and
-                   any(w['week_number'] == week_num for w in item['timetable'])
-            ])
+            current_data.extend([item for item in pending_data if
+                'timetable' in item and any(w['week_number'] == week_num for w in item['timetable'])])
 
     # Объединяем оставшиеся данные
-    final_data = current_data + [
-        item for item in pending_data
-        if item not in current_data
-    ]
+    final_data = current_data + [item for item in pending_data if item not in current_data]
 
     try:
         # Сохраняем результат
@@ -2394,10 +2289,7 @@ def apply_resolution():
 
         return jsonify({'status': 'success'})
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @bp.errorhandler(Exception)
@@ -2467,22 +2359,13 @@ def teacher_workload(teacher_name):
 
     workload_by_subject = {}  # Статистика по предметам
     total_stats = {  # Общая статистика
-        'lectures': 0,
-        'practices': 0,
-        'labs': 0
-    }
+        'lectures': 0, 'practices': 0, 'labs': 0}
     group_details = {}  # Детали по группам
 
     time_slots = [  # Расписание звонков для отображения времени пар
-        {'start': '08:00', 'end': '09:20'},
-        {'start': '09:30', 'end': '10:50'},
-        {'start': '11:00', 'end': '12:20'},
-        {'start': '12:40', 'end': '14:00'},
-        {'start': '14:10', 'end': '15:30'},
-        {'start': '15:40', 'end': '17:00'},
-        {'start': '17:10', 'end': '18:30'},
-        {'start': '18:40', 'end': '20:00'}
-    ]
+        {'start': '08:00', 'end': '09:20'}, {'start': '09:30', 'end': '10:50'}, {'start': '11:00', 'end': '12:20'},
+        {'start': '12:40', 'end': '14:00'}, {'start': '14:10', 'end': '15:30'}, {'start': '15:40', 'end': '17:00'},
+        {'start': '17:10', 'end': '18:30'}, {'start': '18:40', 'end': '20:00'}]
 
     if isinstance(timetable_data, list):
         for data in timetable_data:
@@ -2499,24 +2382,20 @@ def teacher_workload(teacher_name):
 
                         # Создаем структуры для групп если их еще нет
                         if group_name not in group_details:
-                            group_details[group_name] = {
-                                'total_hours': 0,
-                                'lectures': 0,
-                                'practices': 0,
-                                'labs': 0,
+                            group_details[group_name] = {'total_hours': 0, 'lectures': 0, 'practices': 0, 'labs': 0,
                                 'schedule': [],  # Список всех занятий группы
                                 'subjects': set()  # Уникальные предметы группы
                             }
 
                         for day in group.get('days', []):
                             weekday = day.get('weekday')
-                            weekday_name = ['Понедельник', 'Вторник', 'Среда',
-                                            'Четверг', 'Пятница', 'Суббота'][weekday - 1]
+                            weekday_name = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][
+                                weekday - 1]
 
                             for lesson in day.get('lessons', []):
                                 # Проверяем, ведёт ли преподаватель это занятие
-                                if any(teacher.get('teacher_name') == teacher_name
-                                       for teacher in lesson.get('teachers', [])):
+                                if any(teacher.get('teacher_name') == teacher_name for teacher in
+                                       lesson.get('teachers', [])):
 
                                     subject = lesson.get('subject')
                                     lesson_type = lesson.get('type')
@@ -2528,18 +2407,11 @@ def teacher_workload(teacher_name):
                                     time_str = f"{time_info['start']} - {time_info['end']}" if time_info else f"Пара {time_index}"
 
                                     # Добавляем информацию о занятии
-                                    lesson_info = {
-                                        'week': week_number,
-                                        'week_dates': week_dates,
-                                        'weekday': weekday_name,
-                                        'weekday_number': weekday,  # Для сортировки
-                                        'time_slot': time_index,
-                                        'time_str': time_str,
-                                        'subject': subject,
-                                        'type': lesson_type,
-                                        'subgroup': lesson.get('subgroup', 0),
-                                        'auditory': lesson.get('auditories', [{}])[0].get('auditory_name', '')
-                                    }
+                                    lesson_info = {'week': week_number, 'week_dates': week_dates,
+                                        'weekday': weekday_name, 'weekday_number': weekday,  # Для сортировки
+                                        'time_slot': time_index, 'time_str': time_str, 'subject': subject,
+                                        'type': lesson_type, 'subgroup': lesson.get('subgroup', 0),
+                                        'auditory': lesson.get('auditories', [{}])[0].get('auditory_name', '')}
 
                                     # Обновляем расписание группы
                                     group_details[group_name]['schedule'].append(lesson_info)
@@ -2556,13 +2428,8 @@ def teacher_workload(teacher_name):
 
                                     # Обновляем статистику по предметам
                                     if subject not in workload_by_subject:
-                                        workload_by_subject[subject] = {
-                                            'groups': set(),
-                                            'lectures': 0,
-                                            'practices': 0,
-                                            'labs': 0,
-                                            'total_hours': 0
-                                        }
+                                        workload_by_subject[subject] = {'groups': set(), 'lectures': 0, 'practices': 0,
+                                            'labs': 0, 'total_hours': 0}
 
                                     workload_by_subject[subject]['groups'].add(group_name)
                                     workload_by_subject[subject]['total_hours'] += 2
@@ -2579,11 +2446,7 @@ def teacher_workload(teacher_name):
 
     # Сортируем расписание для каждой группы
     for group_data in group_details.values():
-        group_data['schedule'].sort(key=lambda x: (
-            x['week'],
-            x['weekday_number'],
-            x['time_slot']
-        ))
+        group_data['schedule'].sort(key=lambda x: (x['week'], x['weekday_number'], x['time_slot']))
         group_data['subjects'] = sorted(list(group_data['subjects']))
 
     # Конвертируем множества групп в списки и сортируем
@@ -2591,21 +2454,14 @@ def teacher_workload(teacher_name):
         subject_data['groups'] = sorted(list(subject_data['groups']))
 
     # Считаем общее количество часов
-    total_hours = sum(subject_data['total_hours']
-                      for subject_data in workload_by_subject.values())
+    total_hours = sum(subject_data['total_hours'] for subject_data in workload_by_subject.values())
 
     # Сортируем предметы по алфавиту
     workload_by_subject = dict(sorted(workload_by_subject.items()))
 
-    return render_template(
-        'timetable/teacher_workload.html',
-        teacher_name=teacher_name,
-        workload_by_subject=workload_by_subject,
-        total_stats=total_stats,
-        total_hours=total_hours,
-        group_details=group_details,
-        time_slots=time_slots
-    )
+    return render_template('timetable/teacher_workload.html', teacher_name=teacher_name,
+        workload_by_subject=workload_by_subject, total_stats=total_stats, total_hours=total_hours,
+        group_details=group_details, time_slots=time_slots)
 
 
 @bp.route('/room/<room_name>')
@@ -2619,11 +2475,9 @@ def room_timetable(room_name):
         for timetable_item in timetable_data:
             if 'timetable' in timetable_item:
                 for week_data in timetable_item['timetable']:
-                    weeks.append({
-                        'week_number': week_data.get('week_number'),
-                        'date_start': week_data.get('date_start'),
-                        'date_end': week_data.get('date_end')
-                    })
+                    weeks.append(
+                        {'week_number': week_data.get('week_number'), 'date_start': week_data.get('date_start'),
+                            'date_end': week_data.get('date_end')})
 
     weeks.sort(key=lambda x: x['week_number'])
 
@@ -2651,16 +2505,9 @@ def room_timetable(room_name):
         selected_week = str(closest_week['week_number'])
         return redirect(url_for('timetable.room_timetable', room_name=room_name, week=selected_week))
 
-    time_slots = [
-        {'start': '08:00', 'end': '09:20'},
-        {'start': '09:30', 'end': '10:50'},
-        {'start': '11:00', 'end': '12:20'},
-        {'start': '12:40', 'end': '14:00'},
-        {'start': '14:10', 'end': '15:30'},
-        {'start': '15:40', 'end': '17:00'},
-        {'start': '17:10', 'end': '18:30'},
-        {'start': '18:40', 'end': '20:00'}
-    ]
+    time_slots = [{'start': '08:00', 'end': '09:20'}, {'start': '09:30', 'end': '10:50'},
+        {'start': '11:00', 'end': '12:20'}, {'start': '12:40', 'end': '14:00'}, {'start': '14:10', 'end': '15:30'},
+        {'start': '15:40', 'end': '17:00'}, {'start': '17:10', 'end': '18:30'}, {'start': '18:40', 'end': '20:00'}]
 
     day_names = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
@@ -2694,16 +2541,13 @@ def room_timetable(room_name):
                                 for day_data in group.get('days', []):
                                     if day_data.get('weekday') == day:
                                         for lesson in day_data.get('lessons', []):
-                                            if (lesson.get('time') == time and
-                                                    any(auditory.get('auditory_name') == room_name
-                                                        for auditory in lesson.get('auditories', []))):
+                                            if (lesson.get('time') == time and any(
+                                                auditory.get('auditory_name') == room_name for auditory in
+                                                lesson.get('auditories', []))):
 
                                                 # Создаем ключ для группировки идентичных занятий
-                                                key = (
-                                                    lesson.get('subject'),
-                                                    lesson.get('type'),
-                                                    str(lesson.get('teachers', [{}])[0].get('teacher_name', ''))
-                                                )
+                                                key = (lesson.get('subject'), lesson.get('type'),
+                                                       str(lesson.get('teachers', [{}])[0].get('teacher_name', '')))
 
                                                 if key not in lessons_by_type:
                                                     lesson_copy = lesson.copy()
@@ -2722,14 +2566,7 @@ def room_timetable(room_name):
             print(f"Ошибка в get_room_lessons: {str(e)}")
             return None
 
-    return render_template('timetable/room.html',
-                           room_name=room_name,
-                           weeks=weeks,
-                           current_week=selected_week,
-                           time_slots=time_slots,
-                           day_names=day_names,
-                           timetable=timetable_data,
-                           get_lessons=get_room_lessons,
-                           current_pair=current_pair,
-                           current_weekday=current_weekday,
+    return render_template('timetable/room.html', room_name=room_name, weeks=weeks, current_week=selected_week,
+                           time_slots=time_slots, day_names=day_names, timetable=timetable_data,
+                           get_lessons=get_room_lessons, current_pair=current_pair, current_weekday=current_weekday,
                            current_time=current_time)

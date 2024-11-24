@@ -37,7 +37,7 @@ def create_app():
     @app.route('/robots.txt')
     def robots_txt():
         content = """User-agent: Yandex
-Disallow: /timetable
+Disallow: /
 
 User-agent: *
 Allow: /"""

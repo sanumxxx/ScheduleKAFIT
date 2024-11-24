@@ -3,368 +3,379 @@
 
 {% block content %}
     <div class="flex flex-col">
-    <!-- Адаптивный заголовок -->
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <!-- Заголовок -->
-        <div class="text-center sm:text-left">
-            <h1 class="text-2xl font-bold text-gray-900">Группа {{ group_name }}</h1>
+        <!-- Адаптивный заголовок -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <!-- Заголовок -->
+            <div class="text-center sm:text-left">
+                <h1 class="text-2xl font-bold text-gray-900">Группа {{ group_name }}</h1>
+            </div>
+
+            <!-- Контролы (на мобильном будут внизу) -->
+            <div class="flex flex-col sm:flex-row gap-4 items-center">
+                <select
+                        class="w-full sm:w-auto form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        onchange="changeWeek(this.value)">
+                    {% for week in weeks %}
+                        {% if week.week_number|string == request.args.get('week', current_week|string) %}
+                            <option value="{{ week.week_number }}" selected>
+                                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+                            </option>
+                        {% else %}
+                            <option value="{{ week.week_number }}">
+                                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+
+                <a href="{{ url_for('timetable.export_excel', type='group', name=group_name, week=current_week) }}"
+                   class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd"
+                              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                              clip-rule="evenodd"/>
+                    </svg>
+                    Экспорт в Excel
+                </a>
+
+                {% if current_user.is_authenticated and session.get('is_admin') %}
+                    <button
+                            onclick="toggleEditMode()"
+                            id="editButton"
+                            class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
+                        Редактировать
+                    </button>
+                {% endif %}
+            </div>
         </div>
-
-        <!-- Контролы (на мобильном будут внизу) -->
-        <div class="flex flex-col sm:flex-row gap-4 items-center">
-            <select
-                class="w-full sm:w-auto form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                onchange="changeWeek(this.value)">
-                {% for week in weeks %}
-                    {% if week.week_number|string == request.args.get('week', current_week|string) %}
-                        <option value="{{ week.week_number }}" selected>
-                            Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
-                        </option>
-                    {% else %}
-                        <option value="{{ week.week_number }}">
-                            Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
-                        </option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-
-            <a href="{{ url_for('timetable.export_excel', type='group', name=group_name, week=current_week) }}"
-               class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-                Экспорт в Excel
-            </a>
-
-            {% if current_user.is_authenticated and session.get('is_admin') %}
-                <button
-                    onclick="toggleEditMode()"
-                    id="editButton"
-                    class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200">
-                    Редактировать
-                </button>
-            {% endif %}
-        </div>
-    </div>
 
 
         <!-- Таблица расписания -->
         <!-- Таблица расписания -->
-<div class="timetable-wrapper">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="time-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Время
-                </th>
-                {% for day_name in day_names %}
-                    <th class="header-cell day-column px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
-                             {% if loop.index == current_weekday %}bg-indigo-50{% endif %}">
-                        <div>{{ day_name }}</div>
-                        <div class="text-xs font-normal text-gray-400 mt-1">
-                            {{ dates[loop.index0] }}
-                        </div>
-                    </th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-            {% for time_idx in range(8) %}
+        <div class="timetable-wrapper">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
                 <tr>
-                    <td class="time-column px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900
+                    <th class="time-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Время
+                    </th>
+                    {% for day_name in day_names %}
+                        <th class="header-cell day-column px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
+                             {% if loop.index == current_weekday %}bg-indigo-50{% endif %}">
+                            <div>{{ day_name }}</div>
+                            <div class="text-xs font-normal text-gray-400 mt-1">
+                                {{ dates[loop.index0] }}
+                            </div>
+                        </th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for time_idx in range(8) %}
+                    <tr>
+                        <td class="time-column px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900
                               {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}">
-                        <div class="time-slot">
-                            <span>{{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}</span>
-                            {% if time_idx + 1 == current_pair %}
-                                <span class="current-badge">Текущая</span>
-                            {% endif %}
-                        </div>
-                    </td>
-                    {% for day in range(1, 7) %}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500
+                            <div class="time-slot">
+                                <span>{{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}</span>
+                                {% if time_idx + 1 == current_pair %}
+                                    <span class="current-badge">Текущая</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% for day in range(1, 7) %}
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500
                                   {% if day == current_weekday %}bg-indigo-50{% endif %}
                                   {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}
                                   {% if day == current_weekday and time_idx + 1 == current_pair %}bg-green-50{% endif %}"
-                            data-day="{{ day }}"
-                            data-time="{{ time_idx + 1 }}"
-                            {% if current_user.is_authenticated and session.get('is_admin') %}
-                            onclick="handleCellClick(event)"
-                            class="cursor-pointer hover:bg-gray-50"
-                            {% endif %}
-                        >
-                            {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
-                            {% if lessons %}
-                                {% for lesson in lessons %}
-<div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
-     data-lesson='{{ lessons|tojson|safe }}'
-     data-subject="{{ lesson.subject }}"
-     data-type="{{ lesson.type }}"
-     data-subgroup="{{ lesson.subgroup }}"
-     data-teacher="{{ lesson.teachers[0].teacher_name }}"
-     data-auditory="{{ lesson.auditories[0].auditory_name }}">
-    <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
-    <div class="flex items-center gap-1 text-xs">
+                                data-day="{{ day }}"
+                                data-time="{{ time_idx + 1 }}"
+                                    {% if current_user.is_authenticated and session.get('is_admin') %}
+                                onclick="handleCellClick(event)"
+                                class="cursor-pointer hover:bg-gray-50"
+                                    {% endif %}
+                            >
+                                {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
+                                {% if lessons %}
+                                    {% for lesson in lessons %}
+                                        <div class="lesson-block {% if not loop.last %}mb-2{% endif %}"
+                                             data-lesson='{{ lessons|tojson|safe }}'
+                                             data-subject="{{ lesson.subject }}"
+                                             data-type="{{ lesson.type }}"
+                                             data-subgroup="{{ lesson.subgroup }}"
+                                             data-teacher="{{ lesson.teachers[0].teacher_name }}"
+                                             data-auditory="{{ lesson.auditories[0].auditory_name }}">
+                                            <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
+                                            <div class="flex items-center gap-1 text-xs">
         <span class="px-2 py-0.5 rounded-full
             {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
             {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
             {% else %}bg-purple-100 text-purple-800{% endif %}">
             {{ lesson.type }}
         </span>
-        {% if lesson.subgroup > 0 %}
-            <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                                {% if lesson.subgroup > 0 %}
+                                                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
                 Подгруппа {{ lesson.subgroup }}
             </span>
-        {% endif %}
-    </div>
-    <div class="text-xs text-gray-500 mt-1">
-        <a href="{{ url_for('timetable.teacher_timetable', teacher_name=lesson.teachers[0].teacher_name) }}"
-           class="hover:text-indigo-600 transition-all duration-200">
-            {{ lesson.teachers[0].teacher_name }}
-        </a>
-    </div>
-    <div class="text-xs font-medium text-gray-700">
-        <a href="{{ url_for('timetable.room_timetable', room_name=lesson.auditories[0].auditory_name) }}"
-           class="hover:text-indigo-600 transition-all duration-200">
-            ауд. {{ lesson.auditories[0].auditory_name }}
-        </a>
-    </div>
-</div>                              {% endfor %}
-                            {% endif %}
-                        </td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1">
+                                                <a href="{{ url_for('timetable.teacher_timetable', teacher_name=lesson.teachers[0].teacher_name) }}"
+                                                   class="hover:text-indigo-600 transition-all duration-200">
+                                                    {{ lesson.teachers[0].teacher_name }}
+                                                </a>
+                                            </div>
+                                            <div class="text-xs font-medium text-gray-700">
+                                                <a href="{{ url_for('timetable.room_timetable', room_name=lesson.auditories[0].auditory_name) }}"
+                                                   class="hover:text-indigo-600 transition-all duration-200">
+                                                    ауд. {{ lesson.auditories[0].auditory_name }}
+                                                </a>
+                                            </div>
+                                        </div>                              {% endfor %}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         <!-- Модальное окно для редактирования -->
         <!-- Модальное окно -->
-<div id="editModal" class="fixed inset-0 hidden z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <!-- Затемненный фон -->
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div id="editModal" class="fixed inset-0 hidden z-50" aria-labelledby="modal-title" role="dialog"
+             aria-modal="true">
+            <!-- Затемненный фон -->
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4 text-center sm:items-center sm:p-0">
-            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                <!-- Заголовок -->
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg font-semibold leading-6 text-gray-900 mb-4">
-                        Редактирование занятия
-                    </h3>
+            <div class="fixed inset-0 z-10 overflow-y-auto">
+                <div class="flex min-h-full items-center justify-center p-4 text-center sm:items-center sm:p-0">
+                    <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                        <!-- Заголовок -->
+                        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                            <h3 class="text-lg font-semibold leading-6 text-gray-900 mb-4">
+                                Редактирование занятия
+                            </h3>
 
-                    <!-- Форма -->
-                    <form id="editForm" class="space-y-4">
-                        <!-- Выбор типа распределения -->
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Тип распределения</label>
-                            <div class="space-y-2">
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="groupType" value="common" class="form-radio" checked>
-                                    <span class="ml-2">Общее занятие</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="groupType" value="subgroup1" class="form-radio">
-                                    <span class="ml-2">Только первая подгруппа</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="groupType" value="subgroup2" class="form-radio">
-                                    <span class="ml-2">Только вторая подгруппа</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="groupType" value="both" class="form-radio">
-                                    <span class="ml-2">Разные занятия для подгрупп</span>
-                                </label>
-                            </div>
-                        </div>
+                            <!-- Форма -->
+                            <form id="editForm" class="space-y-4">
+                                <!-- Выбор типа распределения -->
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Тип распределения</label>
+                                    <div class="space-y-2">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="groupType" value="common" class="form-radio"
+                                                   checked>
+                                            <span class="ml-2">Общее занятие</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="groupType" value="subgroup1" class="form-radio">
+                                            <span class="ml-2">Только первая подгруппа</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="groupType" value="subgroup2" class="form-radio">
+                                            <span class="ml-2">Только вторая подгруппа</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="groupType" value="both" class="form-radio">
+                                            <span class="ml-2">Разные занятия для подгрупп</span>
+                                        </label>
+                                    </div>
+                                </div>
 
-                        <!-- Общий выбор типа занятия -->
-                        <div id="commonTypeSelect">
-                            <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
-                            <select name="lessonType" id="commonLessonType"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">Выберите тип</option>
-                                {% for type in unique_values.lesson_types %}
-                                    <option value="{{ type }}">
-                                        {% if type == 'л.' %}Лекция
-                                        {% elif type == 'пр.' %}Практика
-                                        {% elif type == 'лаб.' %}Лабораторная
-                                        {% endif %}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <!-- Форма для общего занятия -->
-                        <div id="commonForm">
-                            <div class="space-y-4">
-                                <!-- Предмет -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                    <select name="subject"
+                                <!-- Общий выбор типа занятия -->
+                                <div id="commonTypeSelect">
+                                    <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
+                                    <select name="lessonType" id="commonLessonType"
                                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        <option value="">Выберите предмет</option>
-                                        {% for subject in unique_values.subjects %}
-                                            <option value="{{ subject }}">{{ subject }}</option>
+                                        <option value="">Выберите тип</option>
+                                        {% for type in unique_values.lesson_types %}
+                                            <option value="{{ type }}">
+                                                {% if type == 'л.' %}Лекция
+                                                {% elif type == 'пр.' %}Практика
+                                                {% elif type == 'лаб.' %}Лабораторная
+                                                {% endif %}
+                                            </option>
                                         {% endfor %}
                                     </select>
                                 </div>
 
-                                <!-- Преподаватель -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                    <select name="teacher"
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        <option value="">Выберите преподавателя</option>
-                                        {% for teacher in unique_values.teachers %}
-                                            <option value="{{ teacher }}">{{ teacher }}</option>
-                                        {% endfor %}
-                                    </select>
+                                <!-- Форма для общего занятия -->
+                                <div id="commonForm">
+                                    <div class="space-y-4">
+                                        <!-- Предмет -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                            <select name="subject"
+                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="">Выберите предмет</option>
+                                                {% for subject in unique_values.subjects %}
+                                                    <option value="{{ subject }}">{{ subject }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <!-- Преподаватель -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                            <select name="teacher"
+                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="">Выберите преподавателя</option>
+                                                {% for teacher in unique_values.teachers %}
+                                                    <option value="{{ teacher }}">{{ teacher }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <!-- Аудитория -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                            <select name="auditory"
+                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="">Выберите аудиторию</option>
+                                                {% for auditory in unique_values.auditories %}
+                                                    <option value="{{ auditory }}">{{ auditory }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <!-- Аудитория -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                    <select name="auditory"
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        <option value="">Выберите аудиторию</option>
-                                        {% for auditory in unique_values.auditories %}
-                                            <option value="{{ auditory }}">{{ auditory }}</option>
-                                        {% endfor %}
-                                    </select>
+                                <!-- Формы для подгрупп -->
+                                <!-- Формы для подгрупп -->
+                                <div id="subgroupForms" class="hidden space-y-6">
+                                    <!-- Первая подгруппа -->
+                                    <div class="border-t pt-4">
+                                        <h4 class="font-medium text-gray-900 mb-3">Первая подгруппа</h4>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Тип
+                                                    занятия</label>
+                                                <select name="lessonType1"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите тип</option>
+                                                    {% for type in unique_values.lesson_types %}
+                                                        <option value="{{ type }}">
+                                                            {% if type == 'л.' %}Лекция
+                                                            {% elif type == 'пр.' %}Практика
+                                                            {% elif type == 'лаб.' %}Лабораторная
+                                                            {% endif %}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                                <select name="subject1"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите предмет</option>
+                                                    {% for subject in unique_values.subjects %}
+                                                        <option value="{{ subject }}">{{ subject }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                                <select name="teacher1"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите преподавателя</option>
+                                                    {% for teacher in unique_values.teachers %}
+                                                        <option value="{{ teacher }}">{{ teacher }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                                <select name="auditory1"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите аудиторию</option>
+                                                    {% for auditory in unique_values.auditories %}
+                                                        <option value="{{ auditory }}">{{ auditory }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Вторая подгруппа -->
+                                    <div class="border-t pt-4">
+                                        <h4 class="font-medium text-gray-900 mb-3">Вторая подгруппа</h4>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Тип
+                                                    занятия</label>
+                                                <select name="lessonType2"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите тип</option>
+                                                    {% for type in unique_values.lesson_types %}
+                                                        <option value="{{ type }}">
+                                                            {% if type == 'л.' %}Лекция
+                                                            {% elif type == 'пр.' %}Практика
+                                                            {% elif type == 'лаб.' %}Лабораторная
+                                                            {% endif %}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Предмет</label>
+                                                <select name="subject2"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите предмет</option>
+                                                    {% for subject in unique_values.subjects %}
+                                                        <option value="{{ subject }}">{{ subject }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
+                                                <select name="teacher2"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите преподавателя</option>
+                                                    {% for teacher in unique_values.teachers %}
+                                                        <option value="{{ teacher }}">{{ teacher }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+                                                <select name="auditory2"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Выберите аудиторию</option>
+                                                    {% for auditory in unique_values.auditories %}
+                                                        <option value="{{ auditory }}">{{ auditory }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            </form>
                         </div>
 
-                        <!-- Формы для подгрупп -->
-                                               <!-- Формы для подгрупп -->
-                       <div id="subgroupForms" class="hidden space-y-6">
-                           <!-- Первая подгруппа -->
-                           <div class="border-t pt-4">
-                               <h4 class="font-medium text-gray-900 mb-3">Первая подгруппа</h4>
-                               <div class="space-y-4">
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
-                                       <select name="lessonType1"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите тип</option>
-                                           {% for type in unique_values.lesson_types %}
-                                               <option value="{{ type }}">
-                                                   {% if type == 'л.' %}Лекция
-                                                   {% elif type == 'пр.' %}Практика
-                                                   {% elif type == 'лаб.' %}Лабораторная
-                                                   {% endif %}
-                                               </option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                       <select name="subject1"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите предмет</option>
-                                           {% for subject in unique_values.subjects %}
-                                               <option value="{{ subject }}">{{ subject }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                       <select name="teacher1"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите преподавателя</option>
-                                           {% for teacher in unique_values.teachers %}
-                                               <option value="{{ teacher }}">{{ teacher }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                       <select name="auditory1"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите аудиторию</option>
-                                           {% for auditory in unique_values.auditories %}
-                                               <option value="{{ auditory }}">{{ auditory }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                               </div>
-                           </div>
-
-                           <!-- Вторая подгруппа -->
-                           <div class="border-t pt-4">
-                               <h4 class="font-medium text-gray-900 mb-3">Вторая подгруппа</h4>
-                               <div class="space-y-4">
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Тип занятия</label>
-                                       <select name="lessonType2"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите тип</option>
-                                           {% for type in unique_values.lesson_types %}
-                                               <option value="{{ type }}">
-                                                   {% if type == 'л.' %}Лекция
-                                                   {% elif type == 'пр.' %}Практика
-                                                   {% elif type == 'лаб.' %}Лабораторная
-                                                   {% endif %}
-                                               </option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Предмет</label>
-                                       <select name="subject2"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите предмет</option>
-                                           {% for subject in unique_values.subjects %}
-                                               <option value="{{ subject }}">{{ subject }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Преподаватель</label>
-                                       <select name="teacher2"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите преподавателя</option>
-                                           {% for teacher in unique_values.teachers %}
-                                               <option value="{{ teacher }}">{{ teacher }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-                                       <select name="auditory2"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                           <option value="">Выберите аудиторию</option>
-                                           {% for auditory in unique_values.auditories %}
-                                               <option value="{{ auditory }}">{{ auditory }}</option>
-                                           {% endfor %}
-                                       </select>
-                                   </div>
-                               </div>
-                           </div>
-                       </div>
-                   </form>
-               </div>
-
-               <!-- Кнопки -->
-               <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                   <button type="button" onclick="saveLesson()"
-                           class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
-                       Сохранить
-                   </button>
-                   <button type="button" onclick="deleteLesson()"
-                           class="mt-3 inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:mt-0 sm:ml-3 sm:w-auto">
-                       Удалить
-                   </button>
-                   <button type="button" onclick="closeModal()"
-                           class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-                       Отмена
-                   </button>
-               </div>
-           </div>
-       </div>
-   </div>
-</div>
+                        <!-- Кнопки -->
+                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                            <button type="button" onclick="saveLesson()"
+                                    class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
+                                Сохранить
+                            </button>
+                            <button type="button" onclick="deleteLesson()"
+                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:mt-0 sm:ml-3 sm:w-auto">
+                                Удалить
+                            </button>
+                            <button type="button" onclick="closeModal()"
+                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                                Отмена
+                            </button>
+                            <button type="button" onclick="findTransferOptions()"
+                                    class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto">
+                                <i class="fas fa-random mr-2"></i>
+                                Варианты переноса
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Уведомления -->
@@ -499,6 +510,265 @@
             }
         }
 
+        function findTransferOptions() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentWeek = urlParams.get('week');
+
+            if (!currentDay || !currentTime) {
+                showNotification('Не удалось определить день или время пары', 'ERROR');
+                return;
+            }
+
+            const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
+            if (!lessonDivs.length) {
+                showNotification('Нет занятия для переноса', 'ERROR');
+                return;
+            }
+
+            // Показываем лоадер
+            const loadingModal = showLoadingModal();
+
+            let lessonData;
+            try {
+                lessonData = JSON.parse(lessonDivs[0].dataset.lesson);
+            } catch (e) {
+                loadingModal.remove();
+                console.error('Ошибка при получении данных занятия:', e);
+                return;
+            }
+
+            const requestData = {
+                group_name: '{{ group_name }}',
+                current_day: currentDay,
+                current_time: currentTime,
+                current_week: currentWeek,
+                lesson: Array.isArray(lessonData) ? lessonData[0] : lessonData
+            };
+
+            fetch('/timetable/api/transfer_options', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(options => {
+                    loadingModal.remove();
+                    if (options && options.length > 0) {
+                        showTransferOptions(options);
+                    } else {
+                        showNotification('Нет подходящих вариантов для переноса', 'WARNING');
+                    }
+                })
+                .catch(error => {
+                    loadingModal.remove();
+                    console.error('Ошибка при получении вариантов:', error);
+                    showNotification(error.response?.data?.message || 'Ошибка при поиске вариантов переноса', 'ERROR');
+                });
+        }
+
+        function showLoadingModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50';
+            modal.innerHTML = `
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
+        <div class="fixed inset-0 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-6 space-y-4">
+                <div class="flex items-center space-x-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    <p class="text-lg">Поиск вариантов переноса...</p>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.appendChild(modal);
+            return modal;
+        }
+
+        function showTransferOptions(options) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50';
+            modal.innerHTML = `
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Варианты переноса пары</h3>
+                        <div class="space-y-4">
+                            ${options.map((opt, index) => `
+                                <div class="border rounded p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                                     onclick='applyTransfer(${JSON.stringify(opt).replace(/'/g, "&apos;")})'>
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="font-medium">Вариант ${index + 1}</div>
+                                            <div class="text-sm text-gray-500">
+                                                Неделя: ${opt.week}<br>
+                                                День: ${getDayName(opt.day)}<br>
+                                                Время: ${getTimeSlot(opt.time)}<br>
+                                                Аудитория: ${opt.room}
+                                            </div>
+                                        </div>
+                                        <div class="text-sm">
+                                            <span class="px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                                Рейтинг: ${opt.score}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    ${opt.conflicts.length ? `
+                                        <div class="mt-2 text-sm text-yellow-600">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                                            ${opt.conflicts.join(', ')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="button" onclick="this.closest('.fixed').remove()"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.appendChild(modal);
+        }
+
+
+        function applyTransfer(option) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentWeekNum = urlParams.get('week');
+
+            if (!currentDay || !currentTime) {
+                showNotification('Не удалось определить день или время пары', 'ERROR');
+                return;
+            }
+
+            if (confirm(`Перенести пару на ${getDayName(option.day)} (неделя ${option.week}), ${getTimeSlot(option.time)}?`)) {
+                const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
+                let lessonData;
+
+                try {
+                    lessonData = JSON.parse(lessonDivs[0].dataset.lesson);
+                } catch (e) {
+                    console.error('Ошибка при получении данных занятия:', e);
+                    showNotification('Ошибка при получении данных занятия', 'ERROR');
+                    return;
+                }
+
+                const lesson = Array.isArray(lessonData) ? lessonData[0] : lessonData;
+
+                // Обновляем данные для нового слота
+                lesson.time = option.time;
+                lesson.auditories[0].auditory_name = option.room;
+                lesson.week = option.week;
+
+                // Данные для удаления старой пары
+                const deleteData = {
+                    group_name: '{{ group_name }}',
+                    day: currentDay,
+                    time: currentTime,
+                    week: currentWeekNum,
+                    lessons: []
+                };
+
+                // Данные для создания новой пары
+                const createData = {
+                    group_name: '{{ group_name }}',
+                    day: option.day,
+                    time: option.time,
+                    lessons: [lesson],
+                    week: option.week
+                };
+
+                // Показываем лоадер
+                const loadingModal = showLoadingModal();
+
+                // Последовательно удаляем старую и создаем новую пару
+                fetch(`/timetable/api/update?week=${currentWeekNum}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(deleteData)
+                })
+                    .then(response => response.json())
+                    .then(() => {
+                        return fetch(`/timetable/api/update?week=${option.week}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(createData)
+                        });
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        loadingModal.remove();
+
+                        if (data.status === 'warning') {
+                            if (confirm(`${data.message}\n\nПродолжить перенос?`)) {
+                                createData.ignore_overlaps = true;
+                                return fetch(`/timetable/api/update?week=${option.week}`, {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify(createData)
+                                }).then(response => response.json());
+                            } else {
+                                throw new Error('Перенос отменен пользователем');
+                            }
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showNotification('Пара успешно перенесена', 'SUCCESS');
+                            setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                            throw new Error(data.error || 'Ошибка при переносе пары');
+                        }
+                    })
+                    .catch(error => {
+                        loadingModal.remove();
+                        console.error('Ошибка при переносе:', error);
+                        showNotification(
+                            error.message === 'Перенос отменен пользователем'
+                                ? 'Перенос отменен'
+                                : `Ошибка при переносе: ${error.message}`,
+                            error.message === 'Перенос отменен пользователем' ? 'INFO' : 'ERROR'
+                        );
+                    });
+
+                // Закрываем модальное окно с вариантами
+                document.querySelector('.fixed').remove();
+            }
+        }
+
+        function getDayName(day) {
+            const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+            return days[day - 1];
+        }
+
+        function getTimeSlot(time) {
+            const slots = [
+                '08:00 - 09:20',
+                '09:30 - 10:50',
+                '11:00 - 12:20',
+                '12:40 - 14:00',
+                '14:10 - 15:30',
+                '15:40 - 17:00',
+                '17:10 - 18:30',
+                '18:40 - 20:00'
+            ];
+            return slots[time - 1];
+        }
+
         function toggleForms(type) {
             console.log('Переключение формы на тип:', type);
 
@@ -618,396 +888,396 @@
         }
 
         function deleteLesson() {
-    console.log('Удаление пары...', {
-        currentDay,
-        currentTime,
-        currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
-    });
+            console.log('Удаление пары...', {
+                currentDay,
+                currentTime,
+                currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
+            });
 
-    if (!currentDay || !currentTime) {
-        showNotification('Не удалось определить день или время пары', 'ERROR');
-        return;
-    }
+            if (!currentDay || !currentTime) {
+                showNotification('Не удалось определить день или время пары', 'ERROR');
+                return;
+            }
 
-    // Получаем текущую неделю из URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentWeek = urlParams.get('week');
+            // Получаем текущую неделю из URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentWeek = urlParams.get('week');
 
-    if (!currentWeek) {
-        showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
-        return;
-    }
+            if (!currentWeek) {
+                showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
+                return;
+            }
 
-    // Запрашиваем подтверждение
-    if (!confirm('Вы уверены, что хотите удалить эту пару?')) {
-        return;
-    }
+            // Запрашиваем подтверждение
+            if (!confirm('Вы уверены, что хотите удалить эту пару?')) {
+                return;
+            }
 
-    const requestData = {
-        group_name: '{{ group_name }}',
-        day: currentDay,
-        time: currentTime,
-        lessons: [] // Пустой массив для удаления
-    };
+            const requestData = {
+                group_name: '{{ group_name }}',
+                day: currentDay,
+                time: currentTime,
+                lessons: [] // Пустой массив для удаления
+            };
 
-    console.log('Отправляемые данные для удаления:', requestData);
+            console.log('Отправляемые данные для удаления:', requestData);
 
-    fetch(`/timetable/api/update?week=${currentWeek}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            fetch(`/timetable/api/update?week=${currentWeek}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Ответ сервера:', data);
+                    if (data.status === 'success') {
+                        showNotification('Пара успешно удалена', 'SUCCESS');
+                        closeModal();
+                        window.location.href = `?week=${currentWeek}`;
+                    } else {
+                        throw new Error(data.error || 'Ошибка удаления');
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка запроса:', error);
+                    showNotification('Ошибка удаления пары: ' + error.message, 'ERROR');
+                });
         }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Ответ сервера:', data);
-        if (data.status === 'success') {
-            showNotification('Пара успешно удалена', 'SUCCESS');
-            closeModal();
-            window.location.href = `?week=${currentWeek}`;
-        } else {
-            throw new Error(data.error || 'Ошибка удаления');
+
+        function getCurrentWeek(weeks) {
+            const today = new Date();
+
+            for (const week of weeks) {
+                const [startDay, startMonth, startYear] = week.date_start.split('.').map(Number);
+                const [endDay, endMonth, endYear] = week.date_end.split('.').map(Number);
+
+                const startDate = new Date(startYear, startMonth - 1, startDay);
+                const endDate = new Date(endYear, endMonth - 1, endDay);
+
+                if (today >= startDate && today <= endDate) {
+                    return week.week_number.toString();
+                }
+            }
+
+            // Если текущая дата не попадает ни в один диапазон, возвращаем ближайшую неделю
+            let closestWeek = weeks[0];
+            let minDiff = Math.abs(today - new Date(weeks[0].date_start.split('.').reverse().join('-')));
+
+            for (const week of weeks) {
+                const weekStartDate = new Date(week.date_start.split('.').reverse().join('-'));
+                const diff = Math.abs(today - weekStartDate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestWeek = week;
+                }
+            }
+
+            return closestWeek.week_number.toString();
         }
-    })
-    .catch(error => {
-        console.error('Ошибка запроса:', error);
-        showNotification('Ошибка удаления пары: ' + error.message, 'ERROR');
-    });
-}
 
-function getCurrentWeek(weeks) {
-    const today = new Date();
+        function setSelectedWeek() {
+            const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
+            if (!weekSelect) return;
 
-    for (const week of weeks) {
-        const [startDay, startMonth, startYear] = week.date_start.split('.').map(Number);
-        const [endDay, endMonth, endYear] = week.date_end.split('.').map(Number);
+            const urlWeek = getUrlParameter('week');
+            const weeks = Array.from(weekSelect.options).map(option => {
+                const match = option.text.match(/Неделя (\d+) \((\d{2}\.\d{2}\.\d{4}) - (\d{2}\.\d{2}\.\d{4})\)/);
+                return {
+                    week_number: match[1],
+                    date_start: match[2],
+                    date_end: match[3]
+                };
+            });
 
-        const startDate = new Date(startYear, startMonth - 1, startDay);
-        const endDate = new Date(endYear, endMonth - 1, endDay);
-
-        if (today >= startDate && today <= endDate) {
-            return week.week_number.toString();
+            if (!urlWeek) {
+                const currentWeek = getCurrentWeek(weeks);
+                weekSelect.value = currentWeek;
+                if (weekSelect.value !== currentWeek) {
+                    weekSelect.selectedIndex = 0;
+                }
+                changeWeek(weekSelect.value);
+            } else {
+                weekSelect.value = urlWeek;
+            }
         }
-    }
 
-    // Если текущая дата не попадает ни в один диапазон, возвращаем ближайшую неделю
-    let closestWeek = weeks[0];
-    let minDiff = Math.abs(today - new Date(weeks[0].date_start.split('.').reverse().join('-')));
+        function saveLesson() {
+            console.log('Сохранение...', {
+                currentDay,
+                currentTime,
+                currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
+            });
 
-    for (const week of weeks) {
-        const weekStartDate = new Date(week.date_start.split('.').reverse().join('-'));
-        const diff = Math.abs(today - weekStartDate);
-        if (diff < minDiff) {
-            minDiff = diff;
-            closestWeek = week;
+            if (!currentDay || !currentTime) {
+                showNotification('Ошибка: не удалось определить день или время пары', 'ERROR');
+                return;
+            }
+
+            // Получаем текущую неделю из URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentWeek = urlParams.get('week');
+
+            if (!currentWeek) {
+                showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
+                return;
+            }
+
+            // Получаем текущие данные занятия
+            const currentLessons = [];
+            const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
+            lessonDivs.forEach(div => {
+                try {
+                    const lessonData = JSON.parse(div.dataset.lesson);
+                    if (Array.isArray(lessonData)) {
+                        currentLessons.push(...lessonData);
+                    } else {
+                        currentLessons.push(lessonData);
+                    }
+                } catch (e) {
+                    console.error('Ошибка при разборе текущих данных:', e);
+                }
+            });
+
+            // Получаем тип распределения
+            const groupType = document.querySelector('input[name="groupType"]:checked').value;
+            let newLessonData;
+
+            try {
+                if (groupType === 'common') {
+                    // Общее занятие
+                    const subject = document.querySelector('select[name="subject"]').value;
+                    const type = document.querySelector('#commonLessonType').value;
+                    const teacher = document.querySelector('select[name="teacher"]').value;
+                    const auditory = document.querySelector('select[name="auditory"]').value;
+
+                    if (!subject || !type || !teacher || !auditory) {
+                        showNotification('Пожалуйста, заполните все поля', 'WARNING');
+                        highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
+                        return;
+                    }
+
+                    newLessonData = [{
+                        subject: subject,
+                        type: type,
+                        subgroup: 0,
+                        time: currentTime,
+                        teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
+                        auditories: [{auditory_name: auditory}],
+                        Lesson_ID_Num: `${currentDay}_${currentTime}_0`,
+                        week: parseInt(currentWeek)
+                    }];
+                } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
+                    // Занятие для одной подгруппы
+                    const subgroup = groupType === 'subgroup1' ? 1 : 2;
+                    const subject = document.querySelector('select[name="subject"]').value;
+                    const type = document.querySelector('#commonLessonType').value;
+                    const teacher = document.querySelector('select[name="teacher"]').value;
+                    const auditory = document.querySelector('select[name="auditory"]').value;
+
+                    if (!subject || !type || !teacher || !auditory) {
+                        showNotification('Пожалуйста, заполните все поля', 'WARNING');
+                        highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
+                        return;
+                    }
+
+                    newLessonData = [{
+                        subject: subject,
+                        type: type,
+                        subgroup: subgroup,
+                        time: currentTime,
+                        teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
+                        auditories: [{auditory_name: auditory}],
+                        Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`,
+                        week: parseInt(currentWeek)
+                    }];
+                } else if (groupType === 'both') {
+                    // Занятия для обеих подгрупп
+                    const subject1 = document.querySelector('select[name="subject1"]').value;
+                    const subject2 = document.querySelector('select[name="subject2"]').value;
+                    const type1 = document.querySelector('select[name="lessonType1"]').value;
+                    const type2 = document.querySelector('select[name="lessonType2"]').value;
+                    const teacher1 = document.querySelector('select[name="teacher1"]').value;
+                    const teacher2 = document.querySelector('select[name="teacher2"]').value;
+                    const auditory1 = document.querySelector('select[name="auditory1"]').value;
+                    const auditory2 = document.querySelector('select[name="auditory2"]').value;
+
+                    if (!subject1 || !type1 || !teacher1 || !auditory1) {
+                        showNotification('Пожалуйста, заполните все поля для первой подгруппы', 'WARNING');
+                        highlightEmptyFields(['subject1', 'lessonType1', 'teacher1', 'auditory1']);
+                        return;
+                    }
+
+                    if (!subject2 || !type2 || !teacher2 || !auditory2) {
+                        showNotification('Пожалуйста, заполните все поля для второй подгруппы', 'WARNING');
+                        highlightEmptyFields(['subject2', 'lessonType2', 'teacher2', 'auditory2']);
+                        return;
+                    }
+
+                    newLessonData = [
+                        {
+                            subject: subject1,
+                            type: type1,
+                            subgroup: 1,
+                            time: currentTime,
+                            teachers: [{teacher_name: teacher1, teacher_id: "1", teacher_post: ""}],
+                            auditories: [{auditory_name: auditory1}],
+                            Lesson_ID_Num: `${currentDay}_${currentTime}_1`,
+                            week: parseInt(currentWeek)
+                        },
+                        {
+                            subject: subject2,
+                            type: type2,
+                            subgroup: 2,
+                            time: currentTime,
+                            teachers: [{teacher_name: teacher2, teacher_id: "2", teacher_post: ""}],
+                            auditories: [{auditory_name: auditory2}],
+                            Lesson_ID_Num: `${currentDay}_${currentTime}_2`,
+                            week: parseInt(currentWeek)
+                        }
+                    ];
+                }
+
+                // Логируем изменения
+                console.log('Текущее состояние:', currentLessons);
+                console.log('Новое состояние:', newLessonData);
+
+                // Показываем информацию об изменениях
+                let changes = '';
+
+                if (currentLessons.length === 0 && newLessonData.length > 0) {
+                    changes = 'Добавление новой пары:';
+                    newLessonData.forEach(lesson => {
+                        changes += `\n- ${lesson.subject} (${lesson.type})`;
+                        if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
+                        changes += `\n  Преподаватель: ${lesson.teachers[0].teacher_name}`;
+                        changes += `\n  Аудитория: ${lesson.auditories[0].auditory_name}`;
+                    });
+                } else if (currentLessons.length > 0 && newLessonData.length === 0) {
+                    changes = 'Удаление пары:';
+                    currentLessons.forEach(lesson => {
+                        changes += `\n- ${lesson.subject} (${lesson.type})`;
+                        if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
+                    });
+                } else {
+                    changes = 'Изменение пары:';
+                    newLessonData.forEach((newLesson, index) => {
+                        const oldLesson = currentLessons[index];
+                        if (oldLesson) {
+                            changes += `\n\nПодгруппа ${newLesson.subgroup || 'общая'}:`;
+                            if (oldLesson.subject !== newLesson.subject) {
+                                changes += `\n- Предмет: ${oldLesson.subject} → ${newLesson.subject}`;
+                            }
+                            if (oldLesson.type !== newLesson.type) {
+                                changes += `\n- Тип: ${oldLesson.type} → ${newLesson.type}`;
+                            }
+                            if (oldLesson.teachers[0]?.teacher_name !== newLesson.teachers[0]?.teacher_name) {
+                                changes += `\n- Преподаватель: ${oldLesson.teachers[0]?.teacher_name} → ${newLesson.teachers[0]?.teacher_name}`;
+                            }
+                            if (oldLesson.auditories[0]?.auditory_name !== newLesson.auditories[0]?.auditory_name) {
+                                changes += `\n- Аудитория: ${oldLesson.auditories[0]?.auditory_name} → ${newLesson.auditories[0]?.auditory_name}`;
+                            }
+                        } else {
+                            changes += `\n\nДобавлена подгруппа ${newLesson.subgroup}:`;
+                            changes += `\n- Предмет: ${newLesson.subject}`;
+                            changes += `\n- Тип: ${newLesson.type}`;
+                            changes += `\n- Преподаватель: ${newLesson.teachers[0]?.teacher_name}`;
+                            changes += `\n- Аудитория: ${newLesson.auditories[0]?.auditory_name}`;
+                        }
+                    });
+                }
+
+                console.log('Изменения:', changes);
+                showNotification(changes, 'INFO', 8000);
+
+                const requestData = {
+                    group_name: '{{ group_name }}',
+                    day: currentDay,
+                    time: currentTime,
+                    lessons: newLessonData
+                };
+
+                console.log('Отправляемые данные:', requestData);
+
+                fetch(`/timetable/api/update?week=${currentWeek}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Ответ сервера:', data);
+
+                        if (data.status === 'warning') {
+                            // Показываем модальное окно с предупреждением о накладках
+                            return new Promise((resolve, reject) => {
+                                const confirmation = confirm(
+                                    `${data.message}\n\nВы уверены, что хотите сохранить расписание с накладками?`
+                                );
+
+                                if (confirmation) {
+                                    // Если пользователь подтверждает, отправляем запрос повторно с флагом ignore_overlaps
+                                    requestData.ignore_overlaps = true;
+                                    return fetch(`/timetable/api/update?week=${currentWeek}`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify(requestData)
+                                    }).then(response => response.json());
+                                } else {
+                                    reject(new Error('Сохранение отменено пользователем'));
+                                }
+                            });
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showNotification('Изменения сохранены успешно', 'SUCCESS');
+                            closeModal();
+                            // Перезагружаем страницу с сохранением текущей недели
+                            window.location.href = `?week=${currentWeek}`;
+                        } else {
+                            throw new Error(data.error || 'Ошибка сохранения');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка запроса:', error);
+                        if (error.message === 'Сохранение отменено пользователем') {
+                            showNotification('Сохранение отменено', 'INFO');
+                        } else {
+                            showNotification('Ошибка сохранения изменений: ' + error.message, 'ERROR');
+                        }
+                    });
+
+            } catch (error) {
+                console.error('Ошибка при формировании данных:', error);
+                showNotification('Ошибка при формировании данных: ' + error.message, 'ERROR');
+            }
         }
-    }
 
-    return closestWeek.week_number.toString();
-}
-
-function setSelectedWeek() {
-    const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
-    if (!weekSelect) return;
-
-    const urlWeek = getUrlParameter('week');
-    const weeks = Array.from(weekSelect.options).map(option => {
-        const match = option.text.match(/Неделя (\d+) \((\d{2}\.\d{2}\.\d{4}) - (\d{2}\.\d{2}\.\d{4})\)/);
-        return {
-            week_number: match[1],
-            date_start: match[2],
-            date_end: match[3]
-        };
-    });
-
-    if (!urlWeek) {
-        const currentWeek = getCurrentWeek(weeks);
-        weekSelect.value = currentWeek;
-        if (weekSelect.value !== currentWeek) {
-            weekSelect.selectedIndex = 0;
+        // Вспомогательная функция для подсветки пустых полей
+        function highlightEmptyFields(fieldNames) {
+            fieldNames.forEach(name => {
+                const field = document.querySelector(`select[name="${name}"]`);
+                if (field && !field.value) {
+                    field.classList.add('border-red-500', 'ring-red-500');
+                    // Убираем подсветку через 3 секунды
+                    setTimeout(() => {
+                        field.classList.remove('border-red-500', 'ring-red-500');
+                    }, 3000);
+                }
+            });
         }
-        changeWeek(weekSelect.value);
-    } else {
-        weekSelect.value = urlWeek;
-    }
-}
-
-function saveLesson() {
-   console.log('Сохранение...', {
-       currentDay,
-       currentTime,
-       currentCell: currentCell ? currentCell.dataset : 'нет ячейки'
-   });
-
-   if (!currentDay || !currentTime) {
-       showNotification('Ошибка: не удалось определить день или время пары', 'ERROR');
-       return;
-   }
-
-   // Получаем текущую неделю из URL
-   const urlParams = new URLSearchParams(window.location.search);
-   const currentWeek = urlParams.get('week');
-
-   if (!currentWeek) {
-       showNotification('Ошибка: не удалось определить текущую неделю', 'ERROR');
-       return;
-   }
-
-   // Получаем текущие данные занятия
-   const currentLessons = [];
-   const lessonDivs = currentCell.querySelectorAll('div[data-lesson]');
-   lessonDivs.forEach(div => {
-       try {
-           const lessonData = JSON.parse(div.dataset.lesson);
-           if (Array.isArray(lessonData)) {
-               currentLessons.push(...lessonData);
-           } else {
-               currentLessons.push(lessonData);
-           }
-       } catch (e) {
-           console.error('Ошибка при разборе текущих данных:', e);
-       }
-   });
-
-   // Получаем тип распределения
-   const groupType = document.querySelector('input[name="groupType"]:checked').value;
-   let newLessonData;
-
-   try {
-       if (groupType === 'common') {
-           // Общее занятие
-           const subject = document.querySelector('select[name="subject"]').value;
-           const type = document.querySelector('#commonLessonType').value;
-           const teacher = document.querySelector('select[name="teacher"]').value;
-           const auditory = document.querySelector('select[name="auditory"]').value;
-
-           if (!subject || !type || !teacher || !auditory) {
-               showNotification('Пожалуйста, заполните все поля', 'WARNING');
-               highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
-               return;
-           }
-
-           newLessonData = [{
-               subject: subject,
-               type: type,
-               subgroup: 0,
-               time: currentTime,
-               teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-               auditories: [{auditory_name: auditory}],
-               Lesson_ID_Num: `${currentDay}_${currentTime}_0`,
-               week: parseInt(currentWeek)
-           }];
-       } else if (groupType === 'subgroup1' || groupType === 'subgroup2') {
-           // Занятие для одной подгруппы
-           const subgroup = groupType === 'subgroup1' ? 1 : 2;
-           const subject = document.querySelector('select[name="subject"]').value;
-           const type = document.querySelector('#commonLessonType').value;
-           const teacher = document.querySelector('select[name="teacher"]').value;
-           const auditory = document.querySelector('select[name="auditory"]').value;
-
-           if (!subject || !type || !teacher || !auditory) {
-               showNotification('Пожалуйста, заполните все поля', 'WARNING');
-               highlightEmptyFields(['subject', 'lessonType', 'teacher', 'auditory']);
-               return;
-           }
-
-           newLessonData = [{
-               subject: subject,
-               type: type,
-               subgroup: subgroup,
-               time: currentTime,
-               teachers: [{teacher_name: teacher, teacher_id: "1", teacher_post: ""}],
-               auditories: [{auditory_name: auditory}],
-               Lesson_ID_Num: `${currentDay}_${currentTime}_${subgroup}`,
-               week: parseInt(currentWeek)
-           }];
-       } else if (groupType === 'both') {
-           // Занятия для обеих подгрупп
-           const subject1 = document.querySelector('select[name="subject1"]').value;
-           const subject2 = document.querySelector('select[name="subject2"]').value;
-           const type1 = document.querySelector('select[name="lessonType1"]').value;
-           const type2 = document.querySelector('select[name="lessonType2"]').value;
-           const teacher1 = document.querySelector('select[name="teacher1"]').value;
-           const teacher2 = document.querySelector('select[name="teacher2"]').value;
-           const auditory1 = document.querySelector('select[name="auditory1"]').value;
-           const auditory2 = document.querySelector('select[name="auditory2"]').value;
-
-           if (!subject1 || !type1 || !teacher1 || !auditory1) {
-               showNotification('Пожалуйста, заполните все поля для первой подгруппы', 'WARNING');
-               highlightEmptyFields(['subject1', 'lessonType1', 'teacher1', 'auditory1']);
-               return;
-           }
-
-           if (!subject2 || !type2 || !teacher2 || !auditory2) {
-               showNotification('Пожалуйста, заполните все поля для второй подгруппы', 'WARNING');
-               highlightEmptyFields(['subject2', 'lessonType2', 'teacher2', 'auditory2']);
-               return;
-           }
-
-           newLessonData = [
-               {
-                   subject: subject1,
-                   type: type1,
-                   subgroup: 1,
-                   time: currentTime,
-                   teachers: [{teacher_name: teacher1, teacher_id: "1", teacher_post: ""}],
-                   auditories: [{auditory_name: auditory1}],
-                   Lesson_ID_Num: `${currentDay}_${currentTime}_1`,
-                   week: parseInt(currentWeek)
-               },
-               {
-                   subject: subject2,
-                   type: type2,
-                   subgroup: 2,
-                   time: currentTime,
-                   teachers: [{teacher_name: teacher2, teacher_id: "2", teacher_post: ""}],
-                   auditories: [{auditory_name: auditory2}],
-                   Lesson_ID_Num: `${currentDay}_${currentTime}_2`,
-                   week: parseInt(currentWeek)
-               }
-           ];
-       }
-
-       // Логируем изменения
-       console.log('Текущее состояние:', currentLessons);
-       console.log('Новое состояние:', newLessonData);
-
-       // Показываем информацию об изменениях
-       let changes = '';
-
-       if (currentLessons.length === 0 && newLessonData.length > 0) {
-           changes = 'Добавление новой пары:';
-           newLessonData.forEach(lesson => {
-               changes += `\n- ${lesson.subject} (${lesson.type})`;
-               if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
-               changes += `\n  Преподаватель: ${lesson.teachers[0].teacher_name}`;
-               changes += `\n  Аудитория: ${lesson.auditories[0].auditory_name}`;
-           });
-       } else if (currentLessons.length > 0 && newLessonData.length === 0) {
-           changes = 'Удаление пары:';
-           currentLessons.forEach(lesson => {
-               changes += `\n- ${lesson.subject} (${lesson.type})`;
-               if (lesson.subgroup) changes += ` [Подгруппа ${lesson.subgroup}]`;
-           });
-       } else {
-           changes = 'Изменение пары:';
-           newLessonData.forEach((newLesson, index) => {
-               const oldLesson = currentLessons[index];
-               if (oldLesson) {
-                   changes += `\n\nПодгруппа ${newLesson.subgroup || 'общая'}:`;
-                   if (oldLesson.subject !== newLesson.subject) {
-                       changes += `\n- Предмет: ${oldLesson.subject} → ${newLesson.subject}`;
-                   }
-                   if (oldLesson.type !== newLesson.type) {
-                       changes += `\n- Тип: ${oldLesson.type} → ${newLesson.type}`;
-                   }
-                   if (oldLesson.teachers[0]?.teacher_name !== newLesson.teachers[0]?.teacher_name) {
-                       changes += `\n- Преподаватель: ${oldLesson.teachers[0]?.teacher_name} → ${newLesson.teachers[0]?.teacher_name}`;
-                   }
-                   if (oldLesson.auditories[0]?.auditory_name !== newLesson.auditories[0]?.auditory_name) {
-                       changes += `\n- Аудитория: ${oldLesson.auditories[0]?.auditory_name} → ${newLesson.auditories[0]?.auditory_name}`;
-                   }
-               } else {
-                   changes += `\n\nДобавлена подгруппа ${newLesson.subgroup}:`;
-                   changes += `\n- Предмет: ${newLesson.subject}`;
-                   changes += `\n- Тип: ${newLesson.type}`;
-                   changes += `\n- Преподаватель: ${newLesson.teachers[0]?.teacher_name}`;
-                   changes += `\n- Аудитория: ${newLesson.auditories[0]?.auditory_name}`;
-               }
-           });
-       }
-
-       console.log('Изменения:', changes);
-       showNotification(changes, 'INFO', 8000);
-
-       const requestData = {
-           group_name: '{{ group_name }}',
-           day: currentDay,
-           time: currentTime,
-           lessons: newLessonData
-       };
-
-       console.log('Отправляемые данные:', requestData);
-
-       fetch(`/timetable/api/update?week=${currentWeek}`, {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'application/json',
-           },
-           body: JSON.stringify(requestData)
-       })
-       .then(response => response.json())
-       .then(data => {
-           console.log('Ответ сервера:', data);
-
-           if (data.status === 'warning') {
-               // Показываем модальное окно с предупреждением о накладках
-               return new Promise((resolve, reject) => {
-                   const confirmation = confirm(
-                       `${data.message}\n\nВы уверены, что хотите сохранить расписание с накладками?`
-                   );
-
-                   if (confirmation) {
-                       // Если пользователь подтверждает, отправляем запрос повторно с флагом ignore_overlaps
-                       requestData.ignore_overlaps = true;
-                       return fetch(`/timetable/api/update?week=${currentWeek}`, {
-                           method: 'POST',
-                           headers: {
-                               'Content-Type': 'application/json',
-                           },
-                           body: JSON.stringify(requestData)
-                       }).then(response => response.json());
-                   } else {
-                       reject(new Error('Сохранение отменено пользователем'));
-                   }
-               });
-           }
-           return data;
-       })
-       .then(data => {
-           if (data.status === 'success') {
-               showNotification('Изменения сохранены успешно', 'SUCCESS');
-               closeModal();
-               // Перезагружаем страницу с сохранением текущей недели
-               window.location.href = `?week=${currentWeek}`;
-           } else {
-               throw new Error(data.error || 'Ошибка сохранения');
-           }
-       })
-       .catch(error => {
-           console.error('Ошибка запроса:', error);
-           if (error.message === 'Сохранение отменено пользователем') {
-               showNotification('Сохранение отменено', 'INFO');
-           } else {
-               showNotification('Ошибка сохранения изменений: ' + error.message, 'ERROR');
-           }
-       });
-
-   } catch (error) {
-       console.error('Ошибка при формировании данных:', error);
-       showNotification('Ошибка при формировании данных: ' + error.message, 'ERROR');
-   }
-}
-
-// Вспомогательная функция для подсветки пустых полей
-function highlightEmptyFields(fieldNames) {
-    fieldNames.forEach(name => {
-        const field = document.querySelector(`select[name="${name}"]`);
-        if (field && !field.value) {
-            field.classList.add('border-red-500', 'ring-red-500');
-            // Убираем подсветку через 3 секунды
-            setTimeout(() => {
-                field.classList.remove('border-red-500', 'ring-red-500');
-            }, 3000);
-        }
-    });
-}
 
         function closeModal() {
             const modal = document.getElementById('editModal');
@@ -1025,12 +1295,11 @@ function highlightEmptyFields(fieldNames) {
         });
 
         function changeWeek(weekNumber) {
-        updateExportLink(weekNumber);
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('week', weekNumber);
-        window.location.href = currentUrl.toString();
-    }
-
+            updateExportLink(weekNumber);
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('week', weekNumber);
+            window.location.href = currentUrl.toString();
+        }
 
 
         // Добавляем обработчики для предметов, которые могут влиять на выбор преподавателей
@@ -1129,44 +1398,44 @@ function highlightEmptyFields(fieldNames) {
         }
 
         function updateExportLink(weekNumber) {
-        const exportLink = document.querySelector('a[href*="/export/"]');
-        if (exportLink) {
-            const currentHref = new URL(exportLink.href);
-            currentHref.searchParams.set('week', weekNumber);
-            exportLink.href = currentHref.toString();
+            const exportLink = document.querySelector('a[href*="/export/"]');
+            if (exportLink) {
+                const currentHref = new URL(exportLink.href);
+                currentHref.searchParams.set('week', weekNumber);
+                exportLink.href = currentHref.toString();
+            }
         }
-    }
 
         function generateLessonId(day, time, subgroup) {
             return `${day}_${time}_${subgroup}_${Date.now()}`;
         }
 
         const NOTIFICATION_TYPES = {
-    SUCCESS: {
-        bgColor: 'bg-green-500',
-        icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            SUCCESS: {
+                bgColor: 'bg-green-500',
+                icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>`
-    },
-    ERROR: {
-        bgColor: 'bg-red-500',
-        icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            },
+            ERROR: {
+                bgColor: 'bg-red-500',
+                icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>`
-    },
-    WARNING: {
-        bgColor: 'bg-yellow-500',
-        icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            },
+            WARNING: {
+                bgColor: 'bg-yellow-500',
+                icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
         </svg>`
-    },
-    INFO: {
-        bgColor: 'bg-blue-500',
-        icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            },
+            INFO: {
+                bgColor: 'bg-blue-500',
+                icon: `<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>`
-    }
-};
+            }
+        };
 
         function showNotification(message, type = 'ERROR', duration = 3000) {
             const notification = document.getElementById('notification');
@@ -1198,23 +1467,19 @@ function highlightEmptyFields(fieldNames) {
         }
 
         function getUrlParameter(name) {
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get(name);
-}
+            const searchParams = new URLSearchParams(window.location.search);
+            return searchParams.get(name);
+        }
 
         function setSelectedWeek() {
-    const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
-    if (!weekSelect) return;
+            const weekSelect = document.querySelector('select[onchange="changeWeek(this.value)"]');
+            if (!weekSelect) return;
 
-    const urlWeek = getUrlParameter('week');
-    if (urlWeek) {
-        weekSelect.value = urlWeek;
-    }
-}
-
-
-
-
+            const urlWeek = getUrlParameter('week');
+            if (urlWeek) {
+                weekSelect.value = urlWeek;
+            }
+        }
 
 
     </script>
