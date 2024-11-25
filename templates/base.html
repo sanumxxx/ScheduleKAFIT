@@ -327,6 +327,179 @@
             gap: 0.25rem;
         }
     </style>
+    <style>
+/* Dark mode styles */
+.dark {
+    background-color: #111827; /* bg-gray-900 */
+    color: #f3f4f6; /* text-gray-100 */
+}
+
+.dark .bg-white {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+.dark .bg-gray-50 {
+    background-color: #111827 !important; /* bg-gray-900 */
+}
+
+.dark .text-gray-900 {
+    color: #ffffff !important; /* text-white */
+}
+
+.dark .text-gray-700 {
+    color: #d1d5db !important; /* text-gray-300 */
+}
+
+.dark .text-gray-600 {
+    color: #9ca3af !important; /* text-gray-400 */
+}
+
+.dark .text-gray-500 {
+    color: #9ca3af !important; /* text-gray-400 */
+}
+
+.dark .border-gray-200 {
+    border-color: #374151 !important; /* border-gray-700 */
+}
+
+.dark .border-gray-300 {
+    border-color: #4b5563 !important; /* border-gray-600 */
+}
+
+/* Table styles */
+.dark .divide-gray-200 > * {
+    border-color: #374151 !important; /* divide-gray-700 */
+}
+
+.dark thead {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+.dark tbody {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+.dark .time-column {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+.dark .header-cell {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+.dark .time-header {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+/* Form elements */
+.dark select,
+.dark input {
+    background-color: #374151 !important; /* bg-gray-700 */
+    border-color: #4b5563 !important; /* border-gray-600 */
+    color: #f3f4f6 !important; /* text-gray-100 */
+}
+
+.dark select option {
+    background-color: #374151 !important; /* bg-gray-700 */
+    color: #f3f4f6 !important; /* text-gray-100 */
+}
+
+/* Mobile menu */
+.dark .mobile-menu {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+    border-color: #374151 !important; /* border-gray-700 */
+}
+
+.dark .mobile-menu-button:hover {
+    background-color: #374151 !important; /* bg-gray-700 */
+}
+
+/* Context menu */
+.dark .context-menu {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+    border-color: #374151 !important; /* border-gray-700 */
+}
+
+.dark .context-menu-item {
+    color: #d1d5db !important; /* text-gray-300 */
+}
+
+.dark .context-menu-item:hover {
+    background-color: #374151 !important; /* bg-gray-700 */
+    color: #ffffff !important; /* text-white */
+}
+
+/* Current time indicators */
+.dark .bg-yellow-50 {
+    background-color: rgba(146, 64, 14, 0.2) !important; /* bg-yellow-900 bg-opacity-20 */
+}
+
+.dark .bg-indigo-50 {
+    background-color: rgba(49, 46, 129, 0.2) !important; /* bg-indigo-900 bg-opacity-20 */
+}
+
+.dark .bg-green-50 {
+    background-color: rgba(6, 78, 59, 0.2) !important; /* bg-green-900 bg-opacity-20 */
+}
+
+/* Lesson type badges */
+.dark .bg-blue-100 {
+    background-color: #1e3a8a !important; /* bg-blue-900 */
+    color: #dbeafe !important; /* text-blue-100 */
+}
+
+.dark .bg-green-100 {
+    background-color: #064e3b !important; /* bg-green-900 */
+    color: #dcfce7 !important; /* text-green-100 */
+}
+
+.dark .bg-purple-100 {
+    background-color: #581c87 !important; /* bg-purple-900 */
+    color: #f3e8ff !important; /* text-purple-100 */
+}
+
+.dark .bg-indigo-100 {
+    background-color: #312e81 !important; /* bg-indigo-900 */
+    color: #e0e7ff !important; /* text-indigo-100 */
+}
+
+/* Modal backgrounds */
+.dark .bg-opacity-75 {
+    background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* Login form */
+.dark #loginForm {
+    background-color: #1f2937 !important; /* bg-gray-800 */
+}
+
+/* Hover states */
+.dark .hover\:bg-gray-50:hover {
+    background-color: #374151 !important; /* hover:bg-gray-700 */
+}
+
+.dark .hover\:text-gray-900:hover {
+    color: #ffffff !important; /* hover:text-white */
+}
+
+/* Additional form styles */
+.dark .form-select {
+    background-color: #374151 !important; /* bg-gray-700 */
+    border-color: #4b5563 !important; /* border-gray-600 */
+    color: #f3f4f6 !important; /* text-gray-100 */
+}
+
+/* Notification styles */
+.dark .notification .bg-green-50 {
+    background-color: rgba(6, 78, 59, 0.9) !important; /* bg-green-900 */
+    color: #dcfce7 !important; /* text-green-100 */
+}
+
+.dark .notification .bg-red-50 {
+    background-color: rgba(127, 29, 29, 0.9) !important; /* bg-red-900 */
+    color: #fee2e2 !important; /* text-red-100 */
+}
+    </style>
     {% block extra_styles %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col"
@@ -495,34 +668,53 @@
 </style>
 
 <script>
-const html = document.documentElement;
 const themeToggle = document.getElementById('themeToggle');
+const html = document.documentElement;
 const icon = themeToggle.querySelector('i');
 const text = themeToggle.querySelector('span');
 
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const savedTheme = localStorage.getItem('dark-mode');
+const isDark = savedTheme ? savedTheme === 'true' : prefersDark;
+
 // Проверяем сохраненную тему
-const isDark = localStorage.getItem('dark-mode') === 'true';
 if (isDark) {
-   html.classList.add('dark');
-   icon.classList.remove('fa-moon');
-   icon.classList.add('fa-sun');
-   text.textContent = 'Светлая тема';
+    html.classList.add('dark');
+    icon.classList.remove('fa-moon');
+    icon.classList.add('fa-sun');
+    text.textContent = 'Светлая тема';
 }
 
 themeToggle.addEventListener('click', () => {
-   html.classList.toggle('dark');
-   const isDark = html.classList.contains('dark');
-   localStorage.setItem('dark-mode', isDark);
+    html.classList.toggle('dark');
+    const isDark = html.classList.contains('dark');
+    localStorage.setItem('dark-mode', isDark);
 
-   if (isDark) {
-       icon.classList.remove('fa-moon');
-       icon.classList.add('fa-sun');
-       text.textContent = 'Светлая тема';
-   } else {
-       icon.classList.remove('fa-sun');
-       icon.classList.add('fa-moon');
-       text.textContent = 'Тёмная тема';
-   }
+    if (isDark) {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+        text.textContent = 'Светлая тема';
+    } else {
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+        text.textContent = 'Тёмная тема';
+    }
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (localStorage.getItem('dark-mode') === null) {
+        if (e.matches) {
+            html.classList.add('dark');
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+            text.textContent = 'Светлая тема';
+        } else {
+            html.classList.remove('dark');
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+            text.textContent = 'Тёмная тема';
+        }
+    }
 });
 </script>
 
