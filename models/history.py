@@ -7,6 +7,7 @@ from flask import request, Blueprint, render_template, redirect, url_for, sessio
 
 bp = Blueprint('history', __name__, url_prefix='/history')
 
+
 # models/history.py
 
 
@@ -19,13 +20,10 @@ class TimetableHistory:
         if not lesson:
             return None
 
-        return {
-            'subject': lesson.get('subject', ''),
-            'type': lesson.get('type', ''),
+        return {'subject': lesson.get('subject', ''), 'type': lesson.get('type', ''),
             'teachers': [t.get('teacher_name', '') for t in lesson.get('teachers', [])],
             'auditories': [a.get('auditory_name', '') for a in lesson.get('auditories', [])],
-            'subgroup': lesson.get('subgroup', 0)
-        }
+            'subgroup': lesson.get('subgroup', 0)}
 
     def add_record(self, change_type, data):
         """Добавление записи в историю"""
@@ -37,17 +35,9 @@ class TimetableHistory:
             old_lessons = [self.format_lesson_data(lesson) for lesson in data.get('old_lessons', [])]
             new_lessons = [self.format_lesson_data(lesson) for lesson in data.get('lessons', [])]
 
-            record = {
-                'timestamp': timestamp,
-                'type': change_type,
-                'editor_ip': data.get('editor_ip'),
-                'group': data.get('group_name'),
-                'week': data.get('week'),
-                'day': data.get('day'),
-                'time': data.get('time'),
-                'old_data': old_lessons,
-                'new_data': new_lessons
-            }
+            record = {'timestamp': timestamp, 'type': change_type, 'editor_ip': data.get('editor_ip'),
+                'group': data.get('group_name'), 'week': data.get('week'), 'day': data.get('day'),
+                'time': data.get('time'), 'old_data': old_lessons, 'new_data': new_lessons}
 
             history.append(record)
             self.save_history(history)
@@ -112,12 +102,8 @@ def view_history():
     history_handler = TimetableHistory()
 
     # Получаем параметры фильтрации
-    filters = {
-        'group': request.args.get('group'),
-        'week': request.args.get('week'),
-        'date_from': request.args.get('date_from'),
-        'date_to': request.args.get('date_to')
-    }
+    filters = {'group': request.args.get('group'), 'week': request.args.get('week'),
+        'date_from': request.args.get('date_from'), 'date_to': request.args.get('date_to')}
 
     # Фильтруем пустые значения
     filters = {k: v for k, v in filters.items() if v}
@@ -125,6 +111,4 @@ def view_history():
     # Получаем записи истории
     records = history_handler.get_records(filters)
 
-    return render_template('timetable/history.html',
-                           records=records,
-                           filters=filters)
+    return render_template('timetable/history.html', records=records, filters=filters)

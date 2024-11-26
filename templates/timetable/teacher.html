@@ -1,115 +1,117 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col">
-   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-       <div class="text-center sm:text-left">
-           <h1 class="text-2xl font-bold text-gray-900">Расписание преподавателя</h1>
-           <p class="text-lg text-gray-600">{{ teacher_name }}</p>
-       </div>
+    <div class="flex flex-col">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <div class="text-center sm:text-left">
+                <h1 class="text-2xl font-bold text-gray-900">Расписание преподавателя</h1>
+                <p class="text-lg text-gray-600">{{ teacher_name }}</p>
+            </div>
 
-       <div class="flex flex-col sm:flex-row gap-4 items-center">
-           <select
-               class="w-full sm:w-auto form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-               onchange="changeWeek(this.value)">
-               {% for week in weeks %}
-                   {% if week.week_number|string == request.args.get('week', current_week|string) %}
-                       <option value="{{ week.week_number }}" selected>
-                           Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
-                       </option>
-                   {% else %}
-                       <option value="{{ week.week_number }}">
-                           Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
-                       </option>
-                   {% endif %}
-               {% endfor %}
-           </select>
+            <div class="flex flex-col sm:flex-row gap-4 items-center">
+                <select
+                        class="w-full sm:w-auto form-select rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        onchange="changeWeek(this.value)">
+                    {% for week in weeks %}
+                        {% if week.week_number|string == request.args.get('week', current_week|string) %}
+                            <option value="{{ week.week_number }}" selected>
+                                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+                            </option>
+                        {% else %}
+                            <option value="{{ week.week_number }}">
+                                Неделя {{ week.week_number }} ({{ week.date_start }} - {{ week.date_end }})
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
 
-           <a href="{{ url_for('timetable.export_excel', type='teacher', name=teacher_name, week=current_week) }}"
-              class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center justify-center gap-2">
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                   <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
-               </svg>
-               Экспорт в Excel
-           </a>
-       </div>
-   </div>
+                <a href="{{ url_for('timetable.export_excel', type='teacher', name=teacher_name, week=current_week) }}"
+                   class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd"
+                              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                              clip-rule="evenodd"/>
+                    </svg>
+                    Экспорт в Excel
+                </a>
+            </div>
+        </div>
 
-   <div class="timetable-wrapper">
-       <table class="min-w-full divide-y divide-gray-200">
-           <thead class="bg-gray-50">
-               <tr>
-                   <th class="time-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                       Время
-                   </th>
-                   {% for day_name in day_names %}
-                       <th class="header-cell day-column px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                           {{ day_name }}
-                       </th>
-                   {% endfor %}
-               </tr>
-           </thead>
-           <tbody class="bg-white divide-y divide-gray-200">
-               {% for time_idx in range(8) %}
-                   <tr>
-                       <td class="time-column px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900
+        <div class="timetable-wrapper">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="time-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Время
+                    </th>
+                    {% for day_name in day_names %}
+                        <th class="header-cell day-column px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {{ day_name }}
+                        </th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                {% for time_idx in range(8) %}
+                    <tr>
+                        <td class="time-column px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900
                                  {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}">
-                           <div class="time-slot">
-                               <span>{{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}</span>
-                               {% if time_idx + 1 == current_pair %}
-                                   <span class="current-badge">Текущая</span>
-                               {% endif %}
-                           </div>
-                       </td>
-                       {% for day in range(1, 7) %}
-                           <td class="px-6 py-4 text-sm text-gray-500
+                            <div class="time-slot">
+                                <span>{{ time_slots[time_idx].start }} - {{ time_slots[time_idx].end }}</span>
+                                {% if time_idx + 1 == current_pair %}
+                                    <span class="current-badge">Текущая</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% for day in range(1, 7) %}
+                            <td class="px-6 py-4 text-sm text-gray-500
                                      {% if time_idx + 1 == current_pair %}bg-yellow-50{% endif %}
                                      {% if day == current_weekday %}bg-indigo-50{% endif %}
                                      {% if day == current_weekday and time_idx + 1 == current_pair %}bg-green-50{% endif %}">
-                               {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
-                               {% if lessons %}
-                                   {% for lesson in lessons %}
-<div class="lesson-block {% if not loop.last %}mb-2{% endif %}">
-        <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
-        <div class="flex items-center gap-1 text-xs">
+                                {% set lessons = get_lessons(timetable, day, time_idx + 1) %}
+                                {% if lessons %}
+                                    {% for lesson in lessons %}
+                                        <div class="lesson-block {% if not loop.last %}mb-2{% endif %}">
+                                            <div class="font-medium text-gray-900">{{ lesson.subject }}</div>
+                                            <div class="flex items-center gap-1 text-xs">
             <span class="px-2 py-0.5 rounded-full
                 {% if lesson.type == 'л.' %}bg-blue-100 text-blue-800
                 {% elif lesson.type == 'пр.' %}bg-green-100 text-green-800
                 {% else %}bg-purple-100 text-purple-800{% endif %}">
                 {{ lesson.type }}
             </span>
-            {% if lesson.subgroup > 0 %}
-                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                                                {% if lesson.subgroup > 0 %}
+                                                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
                     Подгруппа {{ lesson.subgroup }}
                 </span>
-            {% endif %}
+                                                {% endif %}
+                                            </div>
+                                            <!-- Группы со ссылками -->
+                                            <div class="text-xs text-gray-500 mt-1 lesson-groups">
+                                                {% for group in lesson.groups %}
+                                                    <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
+                                                       class="hover:text-indigo-600 transition-all duration-200">
+                                                        {{ group }}
+                                                    </a>
+                                                {% endfor %}
+                                            </div>
+                                            <!-- Аудитория со ссылкой -->
+                                            <div class="text-xs font-medium text-gray-700">
+                                                <a href="{{ url_for('timetable.room_timetable', room_name=lesson.auditories[0].auditory_name) }}"
+                                                   class="hover:text-indigo-600 transition-all duration-200">
+                                                    ауд. {{ lesson.auditories[0].auditory_name }}
+                                                </a>
+                                            </div>
+                                        </div>                                   {% endfor %}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <!-- Группы со ссылками -->
-        <div class="text-xs text-gray-500 mt-1 lesson-groups">
-            {% for group in lesson.groups %}
-                <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
-                   class="hover:text-indigo-600 transition-all duration-200">
-                    {{ group }}
-                </a>
-            {% endfor %}
-        </div>
-        <!-- Аудитория со ссылкой -->
-        <div class="text-xs font-medium text-gray-700">
-            <a href="{{ url_for('timetable.room_timetable', room_name=lesson.auditories[0].auditory_name) }}"
-               class="hover:text-indigo-600 transition-all duration-200">
-                ауд. {{ lesson.auditories[0].auditory_name }}
-            </a>
-        </div>
-    </div>                                   {% endfor %}
-                               {% endif %}
-                           </td>
-                       {% endfor %}
-                   </tr>
-               {% endfor %}
-           </tbody>
-       </table>
-   </div>
-</div>
+    </div>
 
     <script>
         function changeWeek(weekNumber) {

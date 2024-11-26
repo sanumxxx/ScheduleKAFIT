@@ -2,245 +2,247 @@
 
 {% block content %}
 
-<div class="container mx-auto px-4 py-8">
-    <!-- Поиск -->
-    {% if is_admin %}
-    <!-- Панель администратора -->
-    <div class="mb-8 bg-white rounded-lg shadow-md">
-        <div class="p-6">
-            <h2 class="text-lg font-bold text-gray-900 mb-4">Панель администратора</h2>
+    <div class="container mx-auto px-4 py-8">
+        <!-- Поиск -->
+        {% if is_admin %}
+            <!-- Панель администратора -->
+            <div class="mb-8 bg-white rounded-lg shadow-md">
+                <div class="p-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">Панель администратора</h2>
 
-            <!-- Форма загрузки файлов -->
-            <form action="{{ url_for('timetable.upload_files') }}" method="post" enctype="multipart/form-data" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Загрузка файлов расписания</label>
-                    <input type="file"
-                           name="timetable_files"
-                           multiple
-                           accept=".json"
-                           class="mt-1 block w-full text-sm text-gray-500
+                    <!-- Форма загрузки файлов -->
+                    <form action="{{ url_for('timetable.upload_files') }}" method="post" enctype="multipart/form-data"
+                          class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Загрузка файлов
+                                расписания</label>
+                            <input type="file"
+                                   name="timetable_files"
+                                   multiple
+                                   accept=".json"
+                                   class="mt-1 block w-full text-sm text-gray-500
                                   file:mr-4 file:py-2 file:px-4
                                   file:rounded-md file:border-0
                                   file:text-sm file:font-semibold
                                   file:bg-indigo-50 file:text-indigo-700
                                   hover:file:bg-indigo-100">
-                    <p class="mt-1 text-sm text-gray-500">Можно выбрать несколько файлов</p>
-                </div>
+                            <p class="mt-1 text-sm text-gray-500">Можно выбрать несколько файлов</p>
+                        </div>
 
-                <div class="flex justify-end">
-                    <button type="submit"
-                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Загрузить файлы
-                    </button>
-                </div>
-            </form>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Загрузить файлы
+                            </button>
+                        </div>
+                    </form>
 
-            <!-- Информация о текущем расписании -->
-            <div class="mt-6 pt-6 border-t border-gray-200">
-                <h3 class="text-sm font-medium text-gray-700 mb-2">Текущее расписание</h3>
-                {% if loaded_weeks %}
-                <div class="bg-gray-50 rounded-md p-4">
-                    <div class="text-sm text-gray-700">
-                        <span class="font-medium">Загруженные недели:</span>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            {% for week in loaded_weeks %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <!-- Информация о текущем расписании -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Текущее расписание</h3>
+                        {% if loaded_weeks %}
+                            <div class="bg-gray-50 rounded-md p-4">
+                                <div class="text-sm text-gray-700">
+                                    <span class="font-medium">Загруженные недели:</span>
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        {% for week in loaded_weeks %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 Неделя {{ week.week_number }}
                                 ({{ week.date_start }} - {{ week.date_end }})
                             </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-gray-500">Расписание еще не загружено</p>
+                        {% endif %}
+                    </div>
+
+                    {% if flash_messages %}
+                        <div class="mt-4">
+                            {% for category, message in flash_messages %}
+                                <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                                    {{ message }}
+                                </div>
                             {% endfor %}
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-sm text-gray-500">Расписание еще не загружено</p>
-                {% endif %}
             </div>
+        {% endif %}
 
-            {% if flash_messages %}
-            <div class="mt-4">
-                {% for category, message in flash_messages %}
-                <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
-                    {{ message }}
+        <div class="mb-8">
+            <div class="max-w-xl mx-auto">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Поиск</label>
+                <div class="relative">
+                    <input type="text"
+                           id="searchInput"
+                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                           placeholder="Введите группу, преподавателя или аудиторию...">
                 </div>
+            </div>
+        </div>
+
+        <!-- Навигация -->
+        <div class="mb-8 border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                        data-tab="groups">
+                    Группы
+                </button>
+                <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                        data-tab="teachers">
+                    Преподаватели
+                </button>
+                <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                        data-tab="rooms">
+                    Аудитории
+                </button>
+            </nav>
+        </div>
+
+        <!-- Содержимое вкладок -->
+        <div class="tab-content" id="groupsTab">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for group in groups %}
+                    <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
+                       class="group-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+                        <div class="text-lg font-semibold text-gray-700 text-center">{{ group }}</div>
+                    </a>
                 {% endfor %}
             </div>
-            {% endif %}
         </div>
-    </div>
-    {% endif %}
 
-    <div class="mb-8">
-        <div class="max-w-xl mx-auto">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Поиск</label>
-            <div class="relative">
-                <input type="text"
-                       id="searchInput"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                       placeholder="Введите группу, преподавателя или аудиторию...">
+        <div class="tab-content hidden" id="teachersTab">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for teacher in teachers %}
+                    <a href="{{ url_for('timetable.teacher_timetable', teacher_name=teacher) }}"
+                       data-teacher="{{ teacher }}"
+                       class="teacher-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
+                       oncontextmenu="return false;">
+                        <div class="text-lg font-semibold text-gray-700 text-center">{{ teacher }}</div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-content hidden" id="roomsTab">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for room in rooms %}
+                    <a href="{{ url_for('timetable.room_timetable', room_name=room) }}"
+                       class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+                        <div class="text-lg font-semibold text-gray-700 text-center">{{ room }}</div>
+                    </a>
+                {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- Навигация -->
-    <div class="mb-8 border-b border-gray-200">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                    data-tab="groups">
-                Группы
-            </button>
-            <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                    data-tab="teachers">
-                Преподаватели
-            </button>
-            <button class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                    data-tab="rooms">
-                Аудитории
-            </button>
-        </nav>
-    </div>
+    <!-- Контекстное меню -->
+    <!-- Добавьте это перед закрывающим тегом </body> -->
+    <div id="teacherContextMenu" class="context-menu" style="display: none;"></div>
 
-    <!-- Содержимое вкладок -->
-    <div class="tab-content" id="groupsTab">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {% for group in groups %}
-            <a href="{{ url_for('timetable.group_timetable', group_name=group) }}"
-               class="group-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
-                <div class="text-lg font-semibold text-gray-700 text-center">{{ group }}</div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
+    <script>
+        // Переключение вкладок
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Убираем активный класс со всех кнопок
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active', 'border-indigo-500', 'text-indigo-600');
+                    btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                });
 
-    <div class="tab-content hidden" id="teachersTab">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {% for teacher in teachers %}
-            <a href="{{ url_for('timetable.teacher_timetable', teacher_name=teacher) }}"
-               data-teacher="{{ teacher }}"
-               class="teacher-card block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
-               oncontextmenu="return false;">
-                <div class="text-lg font-semibold text-gray-700 text-center">{{ teacher }}</div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
+                // Скрываем все вкладки
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.add('hidden');
+                });
 
-    <div class="tab-content hidden" id="roomsTab">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {% for room in rooms %}
-            <a href="{{ url_for('timetable.room_timetable', room_name=room) }}"
-               class="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
-                <div class="text-lg font-semibold text-gray-700 text-center">{{ room }}</div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-</div>
+                // Активируем нужную вкладку
+                button.classList.add('active', 'border-indigo-500', 'text-indigo-600');
+                button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
 
-<!-- Контекстное меню -->
-<!-- Добавьте это перед закрывающим тегом </body> -->
-<div id="teacherContextMenu" class="context-menu" style="display: none;"></div>
-
-<script>
-// Переключение вкладок
-document.querySelectorAll('.tab-button').forEach(button => {
-    button.addEventListener('click', () => {
-        // Убираем активный класс со всех кнопок
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active', 'border-indigo-500', 'text-indigo-600');
-            btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                const tabId = button.dataset.tab + 'Tab';
+                document.getElementById(tabId).classList.remove('hidden');
+            });
         });
 
-        // Скрываем все вкладки
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.add('hidden');
+        // Поиск
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', (e) => {
+            const searchText = e.target.value.toLowerCase();
+            const activeTab = document.querySelector('.tab-button.active').dataset.tab;
+
+            // Ищем все карточки в активной вкладке
+            const cards = document.querySelectorAll(`#${activeTab}Tab .grid > a`);
+
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                if (text.includes(searchText)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
         });
 
-        // Активируем нужную вкладку
-        button.classList.add('active', 'border-indigo-500', 'text-indigo-600');
-        button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        // Контекстное меню для преподавателей
+        document.addEventListener('DOMContentLoaded', function () {
+            const contextMenu = document.getElementById('teacherContextMenu');
 
-        const tabId = button.dataset.tab + 'Tab';
-        document.getElementById(tabId).classList.remove('hidden');
-    });
-});
+            // Функция инициализации карточек преподавателей
+            function initTeacherCards() {
+                const teacherCards = document.querySelectorAll('.teacher-card');
+                let touchTimer;
 
-// Поиск
-const searchInput = document.getElementById('searchInput');
-searchInput.addEventListener('input', (e) => {
-    const searchText = e.target.value.toLowerCase();
-    const activeTab = document.querySelector('.tab-button.active').dataset.tab;
+                teacherCards.forEach(card => {
+                    const teacherName = card.getAttribute('data-teacher');
 
-    // Ищем все карточки в активной вкладке
-    const cards = document.querySelectorAll(`#${activeTab}Tab .grid > a`);
+                    // Обработчик правого клика
+                    card.addEventListener('contextmenu', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
 
-    cards.forEach(card => {
-        const text = card.textContent.toLowerCase();
-        if (text.includes(searchText)) {
-            card.classList.remove('hidden');
-        } else {
-            card.classList.add('hidden');
-        }
-    });
-});
+                        // Используем clientX/Y вместо pageX/Y
+                        const rect = e.target.getBoundingClientRect();
+                        const x = e.clientX;
+                        const y = e.clientY;
 
-// Контекстное меню для преподавателей
-document.addEventListener('DOMContentLoaded', function() {
-    const contextMenu = document.getElementById('teacherContextMenu');
+                        showContextMenu(x, y, teacherName);
+                    });
 
-    // Функция инициализации карточек преподавателей
-    function initTeacherCards() {
-    const teacherCards = document.querySelectorAll('.teacher-card');
-    let touchTimer;
+                    // Обработчик долгого нажатия для мобильных
+                    card.addEventListener('touchstart', function (e) {
+                        touchTimer = setTimeout(() => {
+                            const touch = e.touches[0];
+                            const rect = e.target.getBoundingClientRect();
+                            const x = touch.clientX;
+                            const y = touch.clientY;
 
-    teacherCards.forEach(card => {
-        const teacherName = card.getAttribute('data-teacher');
+                            showContextMenu(x, y, teacherName);
+                        }, 500);
+                    });
 
-        // Обработчик правого клика
-        card.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+                    card.addEventListener('touchend', () => {
+                        if (touchTimer) {
+                            clearTimeout(touchTimer);
+                        }
+                    });
 
-            // Используем clientX/Y вместо pageX/Y
-            const rect = e.target.getBoundingClientRect();
-            const x = e.clientX;
-            const y = e.clientY;
-
-            showContextMenu(x, y, teacherName);
-        });
-
-        // Обработчик долгого нажатия для мобильных
-        card.addEventListener('touchstart', function(e) {
-            touchTimer = setTimeout(() => {
-                const touch = e.touches[0];
-                const rect = e.target.getBoundingClientRect();
-                const x = touch.clientX;
-                const y = touch.clientY;
-
-                showContextMenu(x, y, teacherName);
-            }, 500);
-        });
-
-        card.addEventListener('touchend', () => {
-            if (touchTimer) {
-                clearTimeout(touchTimer);
+                    card.addEventListener('touchmove', () => {
+                        if (touchTimer) {
+                            clearTimeout(touchTimer);
+                        }
+                    });
+                });
             }
-        });
 
-        card.addEventListener('touchmove', () => {
-            if (touchTimer) {
-                clearTimeout(touchTimer);
-            }
-        });
-    });
-}
+            // Функция отображения контекстного меню
+            function showContextMenu(x, y, teacherName) {
+                console.log('Showing context menu for:', teacherName);
 
-    // Функция отображения контекстного меню
-    function showContextMenu(x, y, teacherName) {
-    console.log('Showing context menu for:', teacherName);
-
-    // Обновляем содержимое меню
-    contextMenu.innerHTML = `
+                // Обновляем содержимое меню
+                contextMenu.innerHTML = `
         <a href="/timetable/teacher/${teacherName}" class="context-menu-item">
             <i class="fas fa-calendar"></i>
             Расписание
@@ -251,73 +253,74 @@ document.addEventListener('DOMContentLoaded', function() {
         </a>
     `;
 
-    // Показываем меню, но делаем его невидимым для расчёта размеров
-    contextMenu.style.display = 'block';
-    contextMenu.style.opacity = '0';
+                // Показываем меню, но делаем его невидимым для расчёта размеров
+                contextMenu.style.display = 'block';
+                contextMenu.style.opacity = '0';
 
-    // Получаем размеры окна и меню
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    const menuWidth = contextMenu.offsetWidth;
-    const menuHeight = contextMenu.offsetHeight;
+                // Получаем размеры окна и меню
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+                const menuWidth = contextMenu.offsetWidth;
+                const menuHeight = contextMenu.offsetHeight;
 
-    // Получаем позицию прокрутки
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                // Получаем позицию прокрутки
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
-    // Рассчитываем позицию меню
-    let menuX = x + scrollLeft;
-    let menuY = y + scrollTop;
+                // Рассчитываем позицию меню
+                let menuX = x + scrollLeft;
+                let menuY = y + scrollTop;
 
-    // Корректируем позицию, если меню выходит за пределы экрана
-    if (x + menuWidth > windowWidth) {
-        menuX = windowWidth - menuWidth;
-    }
-    if (y + menuHeight > windowHeight) {
-        menuY = y - menuHeight;
-    }
+                // Корректируем позицию, если меню выходит за пределы экрана
+                if (x + menuWidth > windowWidth) {
+                    menuX = windowWidth - menuWidth;
+                }
+                if (y + menuHeight > windowHeight) {
+                    menuY = y - menuHeight;
+                }
 
-    // Применяем позицию
-    contextMenu.style.left = `${menuX}px`;
-    contextMenu.style.top = `${menuY}px`;
+                // Применяем позицию
+                contextMenu.style.left = `${menuX}px`;
+                contextMenu.style.top = `${menuY}px`;
 
-    // Делаем меню видимым и добавляем класс для анимации
-    contextMenu.style.opacity = '1';
-    requestAnimationFrame(() => {
-        contextMenu.classList.add('show');
-    });
-}
-
-    // Закрытие меню при клике вне его
-    document.addEventListener('click', function(e) {
-        if (contextMenu && !contextMenu.contains(e.target)) {
-            contextMenu.classList.remove('show');
-            setTimeout(() => {
-                contextMenu.style.display = 'none';
-            }, 150);
-        }
-    });
-
-    // Вызываем инициализацию при загрузке страницы
-    initTeacherCards();
-
-    // Инициализация при переключении вкладок
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', () => {
-            if (button.dataset.tab === 'teachers') {
-                setTimeout(initTeacherCards, 100);
+                // Делаем меню видимым и добавляем класс для анимации
+                contextMenu.style.opacity = '1';
+                requestAnimationFrame(() => {
+                    contextMenu.classList.add('show');
+                });
             }
-        });
-    });
-});
-</script>
 
-<style>
-.tab-button.active {
-    @apply border-indigo-500 text-indigo-600;
-}
-.tab-button:not(.active) {
-    @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
-}
-</style>
+            // Закрытие меню при клике вне его
+            document.addEventListener('click', function (e) {
+                if (contextMenu && !contextMenu.contains(e.target)) {
+                    contextMenu.classList.remove('show');
+                    setTimeout(() => {
+                        contextMenu.style.display = 'none';
+                    }, 150);
+                }
+            });
+
+            // Вызываем инициализацию при загрузке страницы
+            initTeacherCards();
+
+            // Инициализация при переключении вкладок
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    if (button.dataset.tab === 'teachers') {
+                        setTimeout(initTeacherCards, 100);
+                    }
+                });
+            });
+        });
+    </script>
+
+    <style>
+        .tab-button.active {
+            @apply border-indigo-500 text-indigo-600;
+        }
+
+        .tab-button:not(.active) {
+            @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+        }
+    </style>
 {% endblock %}

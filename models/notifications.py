@@ -23,16 +23,10 @@ class NotificationManager:
         """Сохранение уведомления в JSON файл"""
         notifications = self.get_notifications()
 
-        notification_dict = {
-            'id': notification.id,
-            'title': notification.title,
-            'message': notification.message,
-            'type': notification.type,
-            'active_from': notification.active_from.isoformat(),
-            'active_until': notification.active_until.isoformat(),
-            'priority': notification.priority,
-            'features': notification.features
-        }
+        notification_dict = {'id': notification.id, 'title': notification.title, 'message': notification.message,
+            'type': notification.type, 'active_from': notification.active_from.isoformat(),
+            'active_until': notification.active_until.isoformat(), 'priority': notification.priority,
+            'features': notification.features}
 
         # Обновляем существующее или добавляем новое
         updated = False

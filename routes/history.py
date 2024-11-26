@@ -42,10 +42,7 @@ def view_history():
     # Получаем записи истории
     records = history_handler.get_records(filters)
 
-    return render_template('history/index.html',
-                           records=records,
-                           filters=filters,
-                           groups=sorted(list(groups)),
+    return render_template('history/index.html', records=records, filters=filters, groups=sorted(list(groups)),
                            weeks=range(1, 53))  # предполагаем максимум 52 недели
 
 
@@ -57,12 +54,8 @@ def get_history_records():
     history_handler = TimetableHistory()
 
     # Получаем параметры фильтрации
-    filters = {
-        'group': request.args.get('group'),
-        'week': request.args.get('week'),
-        'date_from': request.args.get('date_from'),
-        'date_to': request.args.get('date_to')
-    }
+    filters = {'group': request.args.get('group'), 'week': request.args.get('week'),
+        'date_from': request.args.get('date_from'), 'date_to': request.args.get('date_to')}
 
     # Фильтруем пустые значения
     filters = {k: v for k, v in filters.items() if v}

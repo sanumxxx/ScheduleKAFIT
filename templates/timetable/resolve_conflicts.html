@@ -1,119 +1,119 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold text-gray-900 mb-6">Обнаружены конфликты недель</h1>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Обнаружены конфликты недель</h1>
 
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="space-y-6">
-            {% for conflict in conflicts %}
-            <div class="border-b pb-6 last:border-b-0">
-                <h3 class="font-medium text-lg mb-4">
-                    Неделя {{ conflict.week }}
-                    <span class="text-sm text-gray-600">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="space-y-6">
+                {% for conflict in conflicts %}
+                    <div class="border-b pb-6 last:border-b-0">
+                        <h3 class="font-medium text-lg mb-4">
+                            Неделя {{ conflict.week }}
+                            <span class="text-sm text-gray-600">
                         ({{ conflict.date_start }} - {{ conflict.date_end }})
                     </span>
-                </h3>
+                        </h3>
 
-                <div class="space-y-2 ml-4">
-                    <p class="text-sm text-gray-600">Найдено в файлах:</p>
-                    <ul class="list-disc ml-8 text-sm text-gray-600">
-                    {% for file in conflict.files %}
-                        <li>{{ file }}</li>
-                    {% endfor %}
-                    </ul>
-                </div>
+                        <div class="space-y-2 ml-4">
+                            <p class="text-sm text-gray-600">Найдено в файлах:</p>
+                            <ul class="list-disc ml-8 text-sm text-gray-600">
+                                {% for file in conflict.files %}
+                                    <li>{{ file }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
 
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Выберите действие:
-                    </label>
-                    <select
-                        onchange="handleWeekResolution({{ conflict.week }}, this.value)"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                    >
-                        <option value="">Выберите действие...</option>
-                        <option value="merge">Объединить все данные</option>
-                        <option value="skip">Пропустить новые данные</option>
-                        <option value="replace">Заменить существующие данные</option>
-                    </select>
-                </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Выберите действие:
+                            </label>
+                            <select
+                                    onchange="handleWeekResolution({{ conflict.week }}, this.value)"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            >
+                                <option value="">Выберите действие...</option>
+                                <option value="merge">Объединить все данные</option>
+                                <option value="skip">Пропустить новые данные</option>
+                                <option value="replace">Заменить существующие данные</option>
+                            </select>
+                        </div>
 
-                <div id="status-{{ conflict.week }}" class="mt-2 text-sm">
-                    <!-- Здесь будет отображаться статус выбора -->
-                </div>
+                        <div id="status-{{ conflict.week }}" class="mt-2 text-sm">
+                            <!-- Здесь будет отображаться статус выбора -->
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
 
-        <div class="mt-8 flex justify-end">
-            <button onclick="applyResolutions()"
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
-                Применить решения
-            </button>
+            <div class="mt-8 flex justify-end">
+                <button onclick="applyResolutions()"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    Применить решения
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-const resolutions = {};
+    <script>
+        const resolutions = {};
 
-function handleWeekResolution(weekNum, action) {
-    resolutions[weekNum] = action;
+        function handleWeekResolution(weekNum, action) {
+            resolutions[weekNum] = action;
 
-    // Обновляем статус
-    const statusEl = document.getElementById(`status-${weekNum}`);
-    if (statusEl) {
-        let statusText = '';
-        let statusClass = '';
+            // Обновляем статус
+            const statusEl = document.getElementById(`status-${weekNum}`);
+            if (statusEl) {
+                let statusText = '';
+                let statusClass = '';
 
-        switch(action) {
-            case 'merge':
-                statusText = 'Данные из всех файлов будут объединены';
-                statusClass = 'text-blue-600';
-                break;
-            case 'skip':
-                statusText = 'Новые данные будут пропущены';
-                statusClass = 'text-yellow-600';
-                break;
-            case 'replace':
-                statusText = 'Существующие данные будут заменены новыми';
-                statusClass = 'text-red-600';
-                break;
+                switch (action) {
+                    case 'merge':
+                        statusText = 'Данные из всех файлов будут объединены';
+                        statusClass = 'text-blue-600';
+                        break;
+                    case 'skip':
+                        statusText = 'Новые данные будут пропущены';
+                        statusClass = 'text-yellow-600';
+                        break;
+                    case 'replace':
+                        statusText = 'Существующие данные будут заменены новыми';
+                        statusClass = 'text-red-600';
+                        break;
+                }
+
+                statusEl.textContent = statusText;
+                statusEl.className = `mt-2 text-sm ${statusClass}`;
+            }
         }
 
-        statusEl.textContent = statusText;
-        statusEl.className = `mt-2 text-sm ${statusClass}`;
-    }
-}
+        function applyResolutions() {
+            const unresolvedWeeks = document.querySelectorAll('select').length -
+                Object.keys(resolutions).length;
 
-function applyResolutions() {
-    const unresolvedWeeks = document.querySelectorAll('select').length -
-                           Object.keys(resolutions).length;
+            if (unresolvedWeeks > 0) {
+                alert('Пожалуйста, выберите действие для всех недель');
+                return;
+            }
 
-    if (unresolvedWeeks > 0) {
-        alert('Пожалуйста, выберите действие для всех недель');
-        return;
-    }
-
-    fetch('{{ url_for("timetable.apply_resolution") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(resolutions)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            window.location.href = '{{ url_for("timetable.index") }}';
-        } else {
-            alert('Произошла ошибка: ' + data.message);
+            fetch('{{ url_for("timetable.apply_resolution") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(resolutions)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.href = '{{ url_for("timetable.index") }}';
+                    } else {
+                        alert('Произошла ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Произошла ошибка: ' + error);
+                });
         }
-    })
-    .catch(error => {
-        alert('Произошла ошибка: ' + error);
-    });
-}
-</script>
+    </script>
 {% endblock %}

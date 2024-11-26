@@ -8,7 +8,6 @@ from functools import wraps
 from config.config import Config
 import os
 
-
 bp = Blueprint('notifications', __name__, url_prefix='/secret-notifications')
 
 notification_manager = NotificationManager(os.path.join(Config.DATA_DIR, 'notifications.json'))
@@ -45,15 +44,8 @@ def create():
         active_until = datetime.strptime(data['active_until'], '%Y-%m-%dT%H:%M')
 
         # Создаем уведомление
-        notification = Notification(
-            id=str(uuid.uuid4()),
-            title=data['title'],
-            message=data['message'],
-            type=data['type'],
-            active_from=active_from,
-            active_until=active_until,
-            priority=data['priority']
-        )
+        notification = Notification(id=str(uuid.uuid4()), title=data['title'], message=data['message'],
+            type=data['type'], active_from=active_from, active_until=active_until, priority=data['priority'])
 
         # Обрабатываем features
         features = data.get('features', '').split('\n')
@@ -84,9 +76,7 @@ def get_active():
     now = datetime.now()
 
     # Фильтруем активные уведомления
-    active_notifications = [
-        n for n in notifications
-        if datetime.fromisoformat(n['active_from']) <= now <= datetime.fromisoformat(n['active_until'])
-    ]
+    active_notifications = [n for n in notifications if
+        datetime.fromisoformat(n['active_from']) <= now <= datetime.fromisoformat(n['active_until'])]
 
     return jsonify(active_notifications)

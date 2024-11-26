@@ -1,5 +1,6 @@
 # routes/api.py
 from flask import Blueprint, jsonify, request
+
 from services.json_handler import TimetableHandler
 
 bp = Blueprint('api', __name__, url_prefix='/api')

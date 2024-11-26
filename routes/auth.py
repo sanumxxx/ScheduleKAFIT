@@ -4,13 +4,16 @@ from flask_login import LoginManager, login_user, logout_user, login_required, U
 
 bp = Blueprint('auth', __name__)
 
+
 # Простой класс пользователя для демонстрации
 class User(UserMixin):
     def __init__(self, user_id):
         self.id = user_id
 
+
 # Глобальный объект для хранения пользователя
 admin_user = User(1)
+
 
 def init_login_manager(app):
     login_manager = LoginManager()
@@ -23,6 +26,7 @@ def init_login_manager(app):
             return admin_user
         return None
 
+
 @bp.route('/login', methods=['POST'])
 def login():
     password = request.form.get('password')
@@ -33,6 +37,7 @@ def login():
     else:
         flash('Неверный пароль', 'error')
     return redirect(url_for('timetable.index'))
+
 
 @bp.route('/logout')
 def logout():
