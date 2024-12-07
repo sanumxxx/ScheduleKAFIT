@@ -7,3 +7,4 @@ transliterate~=1.10.2
 werkzeug~=3.0.3
 telebot~=0.0.5
 pytelegrambotapi~=4.16.1
+transliterate~=1.10.2
