@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     # Получаем IP адрес машины
     hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
 
-    print(f"Server running on {local_ip}:5000")
+
+
     app.run(host='0.0.0.0', port=5000, debug=True)
